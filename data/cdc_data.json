@@ -1,0 +1,68 @@
+[
+  {
+    "url": "https://www.cdc.gov/immigrant-refugee-health/",
+    "disease_name": "Immigrant and Refugee Health",
+    "sections": [
+      {
+        "heading": "Immigrant and Refugee Health",
+        "content": "CDC works to promote and improve the health of immigrants, refugees, and migrants globally."
+      }
+    ]
+  },
+  {
+    "url": "https://www.cdc.gov/acanthamoeba/about/",
+    "disease_name": "Acanthamoeba Infections",
+    "sections": [
+      {
+        "heading": "Overview",
+        "content": "Most people will be exposed to Acanthamoeba during their lifetime. The ameba is found in soil and dust as well fresh water and saltwater. It can also be found in swimming pools, hot tubs, drinking water systems, humidifiers, and in heating, ventilation, and air conditioning (HVAC) systems.\nMost people exposed to Acanthamoeba won't get sick. For others, it can cause serious infections of the brain, skin, eyes, and sinuses. Acanthamoeba can infect parts of the body through cuts or skin wounds or from being inhaled into the lungs or nostrils. It can get into the eyes through contact lens use."
+      },
+      {
+        "heading": "Types",
+        "content": "Non-keratitis Acanthamoeba infections are rare but serious infections that can affect one or many parts of the body. These infections usually occur in people with weakened immune systems and include:\nAcanthamoeba keratitis is an eye infection that typically occurs in healthy people and can cause permanent vision loss. Most people in the United States who get this infection wear contact lenses. The infection usually doesn't spread to other parts of the body."
+      },
+      {
+        "heading": "Free-living amebas",
+        "content": "A free-living ameba is a kind of one-celled organism that lives in water and soil around the world. Most people will come into contact with these amebas during their lives but won't get sick. Others will develop rare but serious infections.\nAlthough there are several types of free-living amebas that live in the environment, three are known to cause severe disease in people:\nAll of these amebas can cause life-threatening brain infections. Some can also cause infections of the eyes, skin, sinuses, and other parts of the body."
+      },
+      {
+        "heading": "Acanthamoeba Infections",
+        "content": "Acanthamoeba is a microscopic, free-living ameba, or amoeba, that can cause rare, but severe infections of the eye, skin, and central nervous system."
+      }
+    ]
+  },
+  {
+    "url": "https://www.cdc.gov/niosh/robotics/about/index.html",
+    "disease_name": "Robotics in the Workplace: An Overview",
+    "sections": [
+      {
+        "heading": "Why it's important",
+        "content": "Robots have existed in the workplace for many years, but their numbers and capabilities are quickly growing. Robots can enhance worker safety, health, and well-being. However, there are also safety concerns."
+      },
+      {
+        "heading": "Types of robots",
+        "content": "Robots are machines or automated technologies that can perform a series of actions. They can do everything from drive cars to perform surgery. You can find various types of robots in today's workplaces:\nTraditional industrial robots work in robotic cells and cages away from human workers.\nProfessional service robots assist workers in completing tasks. These include:\nCollaborative robots directly interact with people. These include:"
+      },
+      {
+        "heading": "Impacts",
+        "content": "Robots can improve worker safety, health, and well-being by doing work in high-risk environments. For example:"
+      },
+      {
+        "heading": "Risks",
+        "content": "Robots can improve safety and productivity in the workplace. However, there are also potential hazards associated with using robot systems. Hazards to workers might include:\nThe increasing use of robots that work in close proximity to people brings new risks to the workplace. These emerging risks may not yet be fully understood. Robots working near people could:\nSafety and health professionals must continually ensure that the use of robots does not create additional hazards or risks to workers. This is important as technology advances and workplace applications change."
+      },
+      {
+        "heading": "What's being done",
+        "content": "NIOSH's Center for Occupational Robotics Research addresses the safety, health, and well-being of workers who use, wear, or work near robots."
+      },
+      {
+        "heading": "Resources",
+        "content": "Review robotics related NIOSH FACE and State FACE reports for recommendations to prevent similar deaths in CDC Stacks.\nView by Collection (NIOSH) and search for reports using keywords (FACE) in the search bar."
+      },
+      {
+        "heading": "NIOSH",
+        "content": "The Occupational Safety and Health Act of 1970 established NIOSH as a research agency focused on the study of worker safety and health, and empowering employers and workers to create safe and healthy workplaces."
+      }
+    ]
+  }
+]
