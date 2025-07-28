@@ -1,11 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
-from requests_html import HTMLSession
 import json
 import os
 
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
+
 
 def extract_who_content(url):
     try:
@@ -70,41 +70,44 @@ def extract_who_content(url):
         return None
 
 
-
-def extract_cdc_content(url):
+def extract_cdc_content_bs4(url):
     try:
-        session = HTMLSession()
-        r = session.get(url)
-        r.html.render(timeout=30, sleep=2)
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Disease name from first <h1>
-        h1_tag = r.html.find("h1", first=True)
-        disease_name = h1_tag.text if h1_tag else "Unknown"
+        # Extract disease name
+        h1_tag = soup.find("h1")
+        disease_name = h1_tag.get_text(strip=True) if h1_tag else "Unknown"
 
-        h2_tags = r.html.find("h2")
-        content_blocks = []
+        # Extract h2 and following p tags
+        sections = []
+        current_heading = None
+        content = []
 
-        for h2 in h2_tags:
-            heading = h2.text.strip()
-            next_elements = h2.element.xpath("following-sibling::*")
-            content = []
+        for tag in soup.find_all(["h2", "p"]):
+            if tag.name == "h2":
+                if current_heading and content:
+                    sections.append({
+                        "heading": current_heading,
+                        "content": "\n".join(content)
+                    })
+                current_heading = tag.get_text(strip=True)
+                content = []
+            elif tag.name == "p" and current_heading:
+                text = tag.get_text(strip=True)
+                if text:
+                    content.append(text)
 
-            for el in next_elements:
-                if el.tag == "h2":
-                    break
-                if el.tag == "p":
-                    content.append(el.text_content().strip())
-
-            if content:
-                content_blocks.append({
-                    "heading": heading,
-                    "content": "\n".join(content)
-                })
+        if current_heading and content:
+            sections.append({
+                "heading": current_heading,
+                "content": "\n".join(content)
+            })
 
         return {
             "url": url,
             "disease_name": disease_name,
-            "sections": content_blocks
+            "sections": sections
         }
 
     except Exception as e:
@@ -113,8 +116,9 @@ def extract_cdc_content(url):
 
 
 def main():
-    # Load WHO URLs
-    with open(f"{DATA_DIR}/who_urls.json") as f:
+    # WHO Extraction
+    who_path = os.path.join(DATA_DIR, "who_urls.json")
+    with open(who_path) as f:
         who_urls = json.load(f)
 
     who_data = []
@@ -124,24 +128,26 @@ def main():
         if data:
             who_data.append(data)
 
-    with open(f"{DATA_DIR}/who_data.json", "w") as f:
+    with open(os.path.join(DATA_DIR, "who_data.json"), "w") as f:
         json.dump(who_data, f, indent=2)
     print("Saved WHO content to who_data.json")
 
-    # Load CDC URLs
-    with open(f"{DATA_DIR}/cdc_urls.json") as f:
+    # CDC Extraction (only first 2)
+    cdc_path = os.path.join(DATA_DIR, "cdc_urls.json")
+    with open(cdc_path) as f:
         cdc_urls = json.load(f)
 
     cdc_data = []
-    for url in cdc_urls:
+    for url in cdc_urls[:2]:  # Only process first 2
         print("Extracting CDC content from:", url)
-        data = extract_cdc_content(url)
+        data = extract_cdc_content_bs4(url)
         if data:
             cdc_data.append(data)
 
-    with open(f"{DATA_DIR}/cdc_data.json", "w") as f:
+    with open(os.path.join(DATA_DIR, "cdc_data.json"), "w") as f:
         json.dump(cdc_data, f, indent=2)
     print("Saved CDC content to cdc_data.json")
+
 
 if __name__ == "__main__":
     main()
