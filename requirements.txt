@@ -3,3 +3,7 @@ uvicorn
 requests
 beautifulsoup4
 requests-html
+faiss-cpu
+numpy
+openai
+python-dotenv
