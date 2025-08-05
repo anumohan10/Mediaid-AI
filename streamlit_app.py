@@ -205,7 +205,7 @@ def get_keyword_summary(query: str, results: List[Dict]) -> str:
     
     return summary
 
-def get_conversational_response(user_message: str, chat_history: List[Dict], results: List[Dict]) -> str:
+def get_conversational_response(user_message: str, chat_history: List[Dict], results: List[Dict], document_context: str = "") -> str:
     """Generate conversational response with context from chat history and search results"""
     try:
         load_dotenv()
@@ -240,15 +240,26 @@ Previous conversation:
 {conversation_context}
 
 Current medical information available:
-{context}
+{context}"""
+
+        # Add document context if available
+        if document_context:
+            prompt += f"""
+
+USER'S UPLOADED MEDICAL DOCUMENT:
+{document_context}
+
+IMPORTANT: The user has uploaded a medical document (shown above). Please analyze this document and answer their question based on both the uploaded document content and the general medical information provided. Explain any medical terms or values found in their document in simple language."""
+
+        prompt += f"""
 
 User's current question: "{user_message}"
 
-Please respond in a natural, conversational way. Be helpful, empathetic, and provide clear medical information. If this is a follow-up question, reference the previous conversation appropriately. Always end with a reminder to consult healthcare professionals for personal medical advice.
+Please respond in a natural, conversational way. Be helpful, empathetic, and provide clear medical information. If this is a follow-up question, reference the previous conversation appropriately. {"If the user uploaded a document, focus on explaining their specific document while providing relevant general medical context." if document_context else ""} Always end with a reminder to consult healthcare professionals for personal medical advice.
 
 Your response should be:
 - Conversational and natural
-- Medically accurate based on the provided sources
+- Medically accurate based on the provided sources{"and uploaded document" if document_context else ""}
 - Easy to understand
 - Appropriately empathetic
 - Include relevant follow-up suggestions if appropriate"""
@@ -281,7 +292,12 @@ def render_navigation():
         st.session_state.selected_disease = None
         st.rerun()
     
-    if st.sidebar.button("📋 Browse Topics", use_container_width=True, key="nav_browse"):
+    if st.sidebar.button("� Upload & Ask", use_container_width=True, key="nav_upload"):
+        st.session_state.current_page = 'upload'
+        st.session_state.selected_disease = None
+        st.rerun()
+    
+    if st.sidebar.button("�📋 Browse Topics", use_container_width=True, key="nav_browse"):
         st.session_state.current_page = 'browse'
         st.session_state.selected_disease = None
         st.rerun()
@@ -467,7 +483,8 @@ def render_search_page(vector_store):
                         for i, result in enumerate(results[:3], 1):
                             st.markdown(f"**{i}. {result['source']}** (Relevance: {result['relevance_score']})")
                             st.markdown(result['text'][:300] + "...")
-                            st.markdown("---")
+                            if i < 3:
+                                st.markdown("---")
                     
                     st.rerun()
                 else:
@@ -502,6 +519,292 @@ def render_search_page(vector_store):
                 st.rerun()
         with col2:
             st.markdown(f"*{len(st.session_state.chat_history)} messages in chat*")
+
+def render_upload_page(vector_store):
+    """Render the Upload & Ask page for medical document analysis"""
+    st.title("📄 Upload & Ask")
+    st.markdown("Upload medical reports, prescriptions, or lab results and ask questions about them!")
+    
+    # Import OCR utilities
+    try:
+        from utils.ocr_utils import create_ocr_interface
+        ocr_available = True
+    except ImportError:
+        ocr_available = False
+    
+    # Check OpenAI status for AI responses
+    load_dotenv()
+    api_key = os.getenv('OPENAI_API_KEY')
+    use_ai = api_key and api_key != 'your-api-key-here' and len(api_key) > 20
+    
+    if use_ai:
+        st.sidebar.success("🤖 AI Analysis: Enabled")
+    else:
+        st.sidebar.warning("🤖 AI Analysis: Disabled (using keyword responses)")
+    
+    # OCR Status indicator
+    if ocr_available:
+        st.sidebar.success("📄 Document Reading: Enabled")
+    else:
+        st.sidebar.error("📄 Document Reading: Disabled")
+        st.error("❌ Document upload feature requires additional packages.")
+        st.info("To enable document reading, install: `pip install easyocr opencv-python Pillow`")
+        st.code("pip install easyocr opencv-python Pillow", language="bash")
+        return
+    
+    # Document upload section
+    st.subheader("📤 Upload Medical Document")
+    
+    # Create OCR interface
+    extracted_text = create_ocr_interface()
+    
+    if extracted_text:
+        # Store extracted text in session state
+        st.session_state.document_context = extracted_text
+        st.session_state.upload_page_document = True
+        
+        st.success("✅ Document processed successfully!")
+        
+        # Document analysis section
+        if 'document_analysis' in st.session_state and st.session_state.document_analysis:
+            st.subheader("🔍 Quick Analysis")
+            analysis = st.session_state.document_analysis
+            
+            cols = st.columns(2)
+            with cols[0]:
+                if 'medications' in analysis:
+                    st.markdown("**💊 Medications Found:**")
+                    for med in analysis['medications'][:3]:
+                        st.write(f"• {med}")
+                
+                if 'diagnoses' in analysis:
+                    st.markdown("**🩺 Diagnoses Found:**")
+                    for diag in analysis['diagnoses'][:3]:
+                        st.write(f"• {diag}")
+            
+            with cols[1]:
+                if 'lab_values' in analysis:
+                    st.markdown("**📊 Lab Values Found:**")
+                    for lab in analysis['lab_values'][:3]:
+                        st.write(f"• {lab}")
+                
+                if 'vitals' in analysis:
+                    st.markdown("**❤️ Vitals Found:**")
+                    for vital in analysis['vitals'][:3]:
+                        st.write(f"• {vital}")
+        
+        # Suggested questions
+        st.subheader("💡 Suggested Questions")
+        st.markdown("Click any question below to ask about your document:")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📋 What medications are mentioned?", key="upload_med_question"):
+                st.session_state.suggested_question = "What medications are mentioned in this document?"
+            if st.button("🩺 What are the diagnoses?", key="upload_diag_question"):
+                st.session_state.suggested_question = "What diagnoses or medical conditions are mentioned in this document?"
+            if st.button("📊 What are the lab values?", key="upload_lab_question"):
+                st.session_state.suggested_question = "What are the lab values or test results mentioned in this document?"
+        
+        with col2:
+            if st.button("⚕️ Explain this report in simple terms", key="upload_explain_question"):
+                st.session_state.suggested_question = "Can you explain what this medical report means in simple terms?"
+            if st.button("⚠️ Are there any concerning values?", key="upload_concern_question"):
+                st.session_state.suggested_question = "Are there any concerning values or findings in this document that I should be aware of?"
+            if st.button("💡 What should I ask my doctor?", key="upload_doctor_question"):
+                st.session_state.suggested_question = "Based on this document, what questions should I ask my doctor during my next visit?"
+    
+    # Chat section for document-specific questions
+    if 'document_context' in st.session_state and st.session_state.document_context and 'upload_page_document' in st.session_state:
+        st.markdown("---")
+        st.subheader("💬 Ask Questions About Your Document")
+        
+        # Display uploaded document info
+        with st.expander("📄 View Uploaded Document Text"):
+            st.text_area("Extracted Text:", st.session_state.document_context, height=200, disabled=True)
+        
+        # Clear document button
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🗑️ Clear Document", key="clear_upload_doc"):
+                if 'document_context' in st.session_state:
+                    del st.session_state.document_context
+                if 'document_analysis' in st.session_state:
+                    del st.session_state.document_analysis
+                if 'upload_page_document' in st.session_state:
+                    del st.session_state.upload_page_document
+                if 'upload_chat_history' in st.session_state:
+                    del st.session_state.upload_chat_history
+                st.success("Document cleared!")
+                st.rerun()
+        
+        # Initialize upload-specific chat history
+        if 'upload_chat_history' not in st.session_state:
+            st.session_state.upload_chat_history = []
+        
+        # Display chat history for this document
+        if st.session_state.upload_chat_history:
+            st.markdown("**📝 Questions & Answers:**")
+            for i, chat in enumerate(st.session_state.upload_chat_history):
+                with st.container():
+                    st.markdown(f"**🧑 You:** {chat['user']}")
+                    st.markdown(f"**🤖 MediAid AI:** {chat['assistant']}")
+                if i < len(st.session_state.upload_chat_history) - 1:
+                    st.markdown("---")
+        
+        # Chat input
+        user_message = None
+        
+        # Check for suggested questions
+        if 'suggested_question' in st.session_state:
+            user_message = st.session_state.suggested_question
+            del st.session_state.suggested_question
+        
+        # Chat input
+        if not user_message:
+            user_message = st.chat_input("Ask a question about your uploaded document...")
+        
+        # Alternative input
+        if not user_message:
+            with st.form("upload_chat_form", clear_on_submit=True):
+                user_message = st.text_area(
+                    "Your question about the document:",
+                    placeholder="e.g., What does this lab result mean? Are my medication dosages normal?",
+                    help="Ask specific questions about your uploaded medical document"
+                )
+                submitted = st.form_submit_button("Ask 💬")
+                if not submitted:
+                    user_message = None
+        
+        if user_message:
+            # Add debug information
+            st.info(f"🔍 Processing your question: {user_message}")
+            
+            # Prepare enhanced query with document context
+            document_context = st.session_state.document_context
+            enhanced_query = f"""
+            User uploaded a medical document with the following content:
+            
+            DOCUMENT CONTENT:
+            {document_context}
+            
+            USER QUESTION ABOUT THE DOCUMENT:
+            {user_message}
+            
+            Please answer the user's question based on the uploaded document content and provide additional relevant medical information if helpful.
+            """
+            
+            # Search for relevant documents
+            with st.spinner("Analyzing your document and searching medical database..."):
+                try:
+                    results = search_documents(vector_store, enhanced_query, max_results=5)
+                    st.success(f"✅ Found {len(results)} relevant medical references")
+                except Exception as e:
+                    st.error(f"❌ Search error: {e}")
+                    results = []
+            
+            if results:
+                # Generate response
+                if use_ai:
+                    st.info("🤖 Generating AI response...")
+                    try:
+                        ai_response = get_conversational_response(enhanced_query, st.session_state.upload_chat_history, results, document_context)
+                        
+                        if ai_response:
+                            # Add to upload-specific chat history
+                            st.session_state.upload_chat_history.append({
+                                'user': user_message,
+                                'assistant': ai_response
+                            })
+                            
+                            # Show response immediately
+                            st.success("✅ Analysis complete!")
+                            with st.container():
+                                st.markdown(f"**🧑 You:** {user_message}")
+                                st.info("📄 Response based on your uploaded document and medical database")
+                                st.markdown(f"**🤖 MediAid AI:** {ai_response}")
+                            
+                            # Add sources
+                            with st.expander("📚 Sources Used"):
+                                st.markdown("**📄 Your Uploaded Document**")
+                                st.markdown(document_context[:500] + "..." if len(document_context) > 500 else document_context)
+                                st.markdown("---")
+                                
+                                for i, result in enumerate(results[:2], 1):
+                                    st.markdown(f"**{i}. {result['source']}** (Relevance: {result['relevance_score']})")
+                                    st.markdown(result['text'][:300] + "...")
+                                    if i < 2:
+                                        st.markdown("---")
+                        else:
+                            st.error("❌ AI analysis failed. Please try again.")
+                            st.error("Debug: AI response was None or empty")
+                    except Exception as e:
+                        st.error(f"❌ AI analysis error: {e}")
+                        import traceback
+                        st.error(f"Debug: {traceback.format_exc()}")
+                else:
+                    # Fallback to keyword summary
+                    st.info("🔍 Using keyword-based analysis...")
+                    try:
+                        summary = get_keyword_summary(user_message, results)
+                        summary = f"Based on your uploaded document and medical database:\n\n{summary}"
+                        
+                        st.session_state.upload_chat_history.append({
+                            'user': user_message,
+                            'assistant': summary
+                        })
+                        
+                        st.success("✅ Analysis complete!")
+                        with st.container():
+                            st.markdown(f"**🧑 You:** {user_message}")
+                            st.markdown(f"**🤖 MediAid AI:** {summary}")
+                    except Exception as e:
+                        st.error(f"❌ Keyword analysis error: {e}")
+            else:
+                st.warning("No relevant medical information found. Please try rephrasing your question.")
+                st.info("Debug: Search returned no results")
+    
+    else:
+        # No document uploaded yet
+        st.info("👆 Upload a medical document above to start asking questions about it!")
+        
+        # Example section
+        st.subheader("📋 What You Can Upload")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+            **📄 Medical Reports:**
+            • Blood test results
+            • X-ray reports
+            • MRI/CT scan reports
+            • Pathology reports
+            """)
+            
+            st.markdown("""
+            **💊 Prescriptions:**
+            • Medication lists
+            • Prescription slips
+            • Pharmacy labels
+            """)
+        
+        with col2:
+            st.markdown("""
+            **🩺 Clinical Documents:**
+            • Doctor's notes
+            • Discharge summaries
+            • Consultation letters
+            • Medical certificates
+            """)
+            
+            st.markdown("""
+            **📊 Lab Results:**
+            • Complete blood count
+            • Lipid panels
+            • Glucose tests
+            • Hormone levels
+            """)
+
 def render_browse_page(vector_store):
     """Render the browse topics page"""
     st.title("📋 Browse Medical Topics")
@@ -721,6 +1024,8 @@ def main():
         render_home_page(vector_store)
     elif st.session_state.current_page == 'search':
         render_search_page(vector_store)
+    elif st.session_state.current_page == 'upload':
+        render_upload_page(vector_store)
     elif st.session_state.current_page == 'browse':
         render_browse_page(vector_store)
     elif st.session_state.current_page == 'disease_detail':
