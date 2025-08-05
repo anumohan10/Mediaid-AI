@@ -7,3 +7,9 @@ faiss-cpu
 numpy
 openai
 python-dotenv
+streamlit
+Pillow
+pytesseract
+opencv-python
+pdf2image
+easyocr

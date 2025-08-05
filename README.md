@@ -6,10 +6,12 @@ An intelligent medical assistant powered by RAG (Retrieval-Augmented Generation)
 
 - 🔍 **Intelligent Medical Search**: Query medical databases with natural language
 - 🤖 **AI-Powered Responses**: Get comprehensive answers using OpenAI GPT models
-- 📊 **Vector Search**: Fast similarity search through medical documents using FAISS
+- � **Document OCR**: Upload and read medical reports, prescriptions, and lab results
+- �📊 **Vector Search**: Fast similarity search through medical documents using FAISS
 - 🌐 **Web Interface**: User-friendly Streamlit web application
 - 📚 **Medical Database**: Curated medical data from CDC and WHO sources
 - 💬 **Chat Interface**: Interactive conversation with medical AI assistant
+- 🩺 **Document Analysis**: Automatic extraction of medications, diagnoses, and lab values
 
 ## 🚀 Quick Start
 
