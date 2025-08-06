@@ -31,10 +31,26 @@ copy .env.example .env
 python scripts/build_faiss_index.py
 
 # 5. Test the setup
-python test_rag_simple.py
+python tests/test_rag_simple.py
 
 # 6. Run the web application
 streamlit run streamlit_app.py
+```
+
+## 📋 Testing & Demo
+
+### Quick System Test
+```bash
+python tests/test_rag_simple.py          # Main system verification
+python tests/test_rag_system.py          # Comprehensive testing
+```
+
+### Interactive Demos
+```bash
+python demos/medical_rag_demo.py         # Full interactive demo
+python demos/demo_search.py              # Search examples
+python demos/simple_rag_demo.py          # Simple RAG demo
+python demos/medical_search.py           # Medical search demo
 ```
 
 ## 📋 Requirements
