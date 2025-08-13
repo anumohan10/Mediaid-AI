@@ -318,6 +318,114 @@ def get_keyword_summary(query: str, results: List[Dict]) -> str:
     
     return summary
 
+def is_medical_query(query: str) -> bool:
+    """Check if the query is medical-related and appropriate for MediAid AI"""
+    query_lower = query.lower()
+    
+    # Medical keywords that indicate legitimate medical queries
+    medical_keywords = [
+        # Medical conditions
+        'symptom', 'symptoms', 'disease', 'condition', 'syndrome', 'disorder', 'infection',
+        'diabetes', 'hypertension', 'cancer', 'heart', 'kidney', 'liver', 'lung', 'brain',
+        'asthma', 'allergy', 'allergies', 'pneumonia', 'flu', 'fever', 'cough', 'pain',
+        'headache', 'migraine', 'depression', 'anxiety', 'stroke', 'blood pressure',
+        
+        # Medical terms
+        'treatment', 'therapy', 'medication', 'medicine', 'drug', 'prescription',
+        'surgery', 'operation', 'procedure', 'diagnosis', 'test', 'screening',
+        'vaccine', 'vaccination', 'immunization', 'prevention', 'cure',
+        
+        # Body parts and systems
+        'chest', 'abdomen', 'stomach', 'throat', 'eye', 'ear', 'nose', 'mouth',
+        'skin', 'bone', 'muscle', 'joint', 'blood', 'urine', 'bowel', 'bladder',
+        
+        # Medical professionals and settings
+        'doctor', 'physician', 'nurse', 'hospital', 'clinic', 'emergency',
+        'medical', 'health', 'healthcare', 'patient', 'diagnosis', 'prognosis',
+        
+        # Pregnancy and child health
+        'pregnant', 'pregnancy', 'baby', 'infant', 'child', 'pediatric',
+        'maternal', 'fetal', 'prenatal', 'postnatal',
+        
+        # Common medical questions
+        'what is', 'how to treat', 'side effects', 'safe during', 'contraindication',
+        'interaction', 'dosage', 'dose', 'risk', 'complication'
+    ]
+    
+    # Non-medical topics that should be blocked
+    non_medical_keywords = [
+        # Technology
+        'computer', 'software', 'programming', 'code', 'coding', 'website', 'app',
+        'internet', 'wifi', 'smartphone', 'iphone', 'android', 'windows', 'mac',
+        
+        # Entertainment
+        'movie', 'film', 'tv show', 'music', 'song', 'game', 'gaming', 'sport',
+        'football', 'basketball', 'soccer', 'celebrity', 'actor', 'actress',
+        
+        # Business/Finance
+        'business', 'investment', 'stock', 'money', 'bank', 'loan', 'credit',
+        'insurance', 'tax', 'salary', 'job', 'career', 'resume',
+        
+        # Education (non-medical)
+        'homework', 'essay', 'assignment', 'math', 'physics', 'chemistry', 'history',
+        'geography', 'literature', 'university', 'college', 'degree',
+        
+        # Politics/Social
+        'politics', 'government', 'election', 'president', 'vote', 'law', 'legal',
+        'court', 'judge', 'lawyer', 'attorney',
+        
+        # Travel/Food (non-medical)
+        'vacation', 'travel', 'hotel', 'restaurant', 'recipe', 'cooking', 'food',
+        'cuisine', 'drink', 'alcohol', 'wine', 'beer',
+        
+        # Personal/Relationships
+        'relationship', 'dating', 'love', 'marriage', 'divorce', 'family',
+        'friend', 'friendship', 'social media', 'facebook', 'twitter', 'instagram'
+    ]
+    
+    # Check for obvious non-medical content
+    non_medical_count = sum(1 for keyword in non_medical_keywords if keyword in query_lower)
+    medical_count = sum(1 for keyword in medical_keywords if keyword in query_lower)
+    
+    # If query contains significantly more non-medical terms, likely not medical
+    if non_medical_count > medical_count and non_medical_count >= 2:
+        return False
+    
+    # Check for explicit non-medical patterns
+    non_medical_patterns = [
+        'how to make', 'recipe for', 'best restaurant', 'movie recommendation',
+        'song lyrics', 'game walkthrough', 'investment advice', 'stock price',
+        'political opinion', 'latest news', 'weather forecast', 'sports score',
+        'programming tutorial', 'code example', 'homework help', 'essay writing'
+    ]
+    
+    if any(pattern in query_lower for pattern in non_medical_patterns):
+        return False
+    
+    # If query contains medical keywords or medical question patterns, allow it
+    medical_question_patterns = [
+        'what is', 'what are', 'how to treat', 'how to prevent', 'symptoms of',
+        'causes of', 'treatment for', 'medication for', 'safe during', 'side effects'
+    ]
+    
+    has_medical_pattern = any(pattern in query_lower for pattern in medical_question_patterns)
+    has_medical_keyword = medical_count > 0
+    
+    # Allow if it has medical context or seems like a health question
+    if has_medical_keyword or has_medical_pattern:
+        return True
+    
+    # For very short queries, be more lenient (might be medical abbreviations)
+    if len(query.split()) <= 3:
+        # But block obvious non-medical short phrases
+        obvious_non_medical = ['pizza', 'movie', 'game', 'music', 'weather', 'news', 'politics', 'programming', 'tutorial']
+        if any(term in query_lower for term in obvious_non_medical):
+            return False
+        return True
+    
+    # Default: if we can't clearly identify it as medical, be cautious
+    return False
+
 def is_complex_query(query: str) -> bool:
     """Determine if a query requires task decomposition"""
     complexity_indicators = [
@@ -618,15 +726,24 @@ def render_navigation():
         st.sidebar.success("🧠 Task Decomposition: Enabled")
         st.sidebar.info("Complex queries will be automatically analyzed and broken down into sub-tasks")
         
+        # Content Guardrails
+        st.sidebar.success("🔒 Content Guardrails: Active")
+        st.sidebar.info("Non-medical queries are automatically blocked")
+        
         # Removed test button for production
     else:
         st.sidebar.warning("🤖 AI Summaries: Disabled (API key not configured)")
         st.sidebar.warning("🧠 Task Decomposition: Disabled (requires OpenAI API)")
+        st.sidebar.success("🔒 Content Guardrails: Active")
         use_ai = False
     
     # Logout button at the bottom
     st.sidebar.markdown("---")
     st.sidebar.markdown(f"👤 **Logged in as:** {st.session_state.username}")
+    
+    # Policy reminder
+    st.sidebar.markdown("---")
+    st.sidebar.info("🔒 **Policy**: MediAid AI is designed exclusively for medical and health-related questions. Non-medical queries will be blocked.")
     
     if st.sidebar.button("🚪 Logout", use_container_width=True, key="nav_logout"):
         st.session_state.authenticated = False
@@ -690,11 +807,11 @@ def render_home_page(vector_store):
     
     with col2:
         st.markdown("""
-        ### 💡 Quick Examples
-        - Pre-built searches
-        - Common medical questions
-        - Instant results
-        - Educational content
+        ### � Safety & Compliance
+        - **Content Guardrails**: Medical-only queries enforced
+        - **Policy Protection**: Non-medical content blocked
+        - **User Authentication**: Secure access control
+        - **Search History**: Personal activity tracking
         
         ### 🎯 Key Benefits
         - Evidence-based information
@@ -778,9 +895,14 @@ def render_home_page(vector_store):
     )
     
     if quick_query:
-        st.session_state.search_query = quick_query
-        st.session_state.current_page = 'search'
-        st.rerun()
+        # GUARDRAIL: Check if the query is medical-related
+        if not is_medical_query(quick_query):
+            st.error("🚫 **Policy Violation**: This is a violation of our application policy. MediAid AI is designed exclusively for medical and health-related questions.")
+            st.warning("**Please ask questions about medical conditions, symptoms, treatments, or health concerns.**")
+        else:
+            st.session_state.search_query = quick_query
+            st.session_state.current_page = 'search'
+            st.rerun()
 
 def render_search_page(vector_store):
     """Render the chat-based search page"""
@@ -831,6 +953,12 @@ def render_search_page(vector_store):
                 user_message = None
     
     if user_message:
+        # GUARDRAIL: Check if the query is medical-related
+        if not is_medical_query(user_message):
+            st.error("🚫 **Policy Violation**: This is a violation of our application policy. MediAid AI is designed exclusively for medical and health-related questions. Please ask questions about medical conditions, symptoms, treatments, medications, or health concerns.")
+            st.warning("**Examples of appropriate questions:**\n- What are the symptoms of diabetes?\n- How to treat high blood pressure?\n- Side effects of aspirin\n- Safe medications during pregnancy")
+            return
+        
         # Check if user wants to use LlamaIndex or compare both
         use_llamaindex = st.session_state.get('use_llamaindex', False)
         compare_engines = st.session_state.get('compare_engines', False)
@@ -1210,6 +1338,12 @@ def render_upload_page(vector_store):
                     user_message = None
         
         if user_message:
+            # GUARDRAIL: Check if the query is medical-related
+            if not is_medical_query(user_message):
+                st.error("🚫 **Policy Violation**: This is a violation of our application policy. MediAid AI is designed exclusively for medical and health-related questions. Please ask questions about your medical document.")
+                st.warning("**Examples of appropriate questions about your document:**\n- What medications are mentioned?\n- What are the lab results?\n- Explain this medical report\n- Are there any concerning values?")
+                return
+            
             # Add debug information
             st.info(f"🔍 Processing your question: {user_message}")
             
@@ -1855,7 +1989,8 @@ def main():
     st.markdown("---")
     st.markdown(
         "**MediAid AI** | Medical information from CDC and WHO databases | "
-        "⚠️ Always consult healthcare professionals for medical advice"
+        "⚠️ Always consult healthcare professionals for medical advice | "
+        "🔒 Medical queries only - Non-medical content is prohibited"
     )
 
 if __name__ == "__main__":

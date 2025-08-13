@@ -15,6 +15,20 @@
       "response": "**OVERVIEW:**\nThe main medical question is about concerns regarding chest pain, shortness of breath, and dizziness with a history of heart disease and taking blood thinners.\n\n**CONDITION ANALYSIS:**\n- **Heart Disease:**\n  - Genetic Disorders: DNA contains instructions for body function.\n  - Leading Causes of Death: Heart disease is a top cause of death globally.\n\n- **Possible Blood Clot:**\n  - Blood Safety: Risk of infections through unsafe blood.\n  - National Blood Policy: Importance of safe bl...",
       "search_type": "complex_analysis",
       "full_response_length": 1431
+    },
+    {
+      "timestamp": "2025-08-13T15:42:12.851499",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "Mucoepidermoid carcinoma is a type of cancer that can occur in various parts of the body, but it is most commonly found in the salivary glands. This type of cancer is made up of both mucous-producing cells and epidermal (skin-like) cells.\n\nIf you or someone you know has been diagnosed with mucoepidermoid carcinoma, it's important to work closely with healthcare professionals to determine the best treatment plan. Treatment options may include surgery, radiation therapy, and chemotherapy, dependin...",
+      "search_type": "ai_search",
+      "full_response_length": 856
+    },
+    {
+      "timestamp": "2025-08-13T15:42:38.879768",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "1. **Overview**: Mucoepidermoid carcinoma is a type of cancer that can develop in various glands throughout the body, most commonly in the salivary glands. It is characterized by a combination of mucous-producing cells and epidermal-like cells.\n\n2. **Key Facts**:\n   - Mucoepidermoid carcinoma is the most common type of salivary gland malignancy.\n   - Symptoms may include a painless mass or swelling in the affected gland, difficulty swallowing, facial paralysis, or persistent pain in the area.\n  ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1594
     }
   ]
 }
