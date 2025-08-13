@@ -13,3 +13,6 @@ pytesseract
 opencv-python
 pdf2image
 easyocr
+faker
+reportlab
+pdfplumber

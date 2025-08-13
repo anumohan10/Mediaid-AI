@@ -5,6 +5,7 @@ Simple test script to verify your RAG system setup.
 
 import os
 import sys
+from config.openai_config import validate_openai_setup, get_openai_api_key
 
 # Add paths
 sys.path.append(os.path.join(os.path.dirname(__file__), 'config'))
@@ -14,7 +15,7 @@ def test_openai_config():
     print("🔧 Testing OpenAI Configuration...")
     
     try:
-        from openai_config import validate_openai_setup, get_openai_api_key
+        from config.openai_config import validate_openai_setup, get_openai_api_key
         
         if validate_openai_setup():
             api_key = get_openai_api_key()
@@ -36,7 +37,7 @@ def test_faiss_index():
     if os.path.exists(index_path):
         try:
             sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
-            from faiss_utils import FAISSVectorStore
+            from utils.faiss_utils import FAISSVectorStore
             
             vector_store = FAISSVectorStore()
             vector_store.load_index(index_path)
@@ -58,7 +59,7 @@ def test_rag_system():
     
     try:
         sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
-        from rag import MedicalRAG
+        from utils.rag import MedicalRAG
         
         # Initialize RAG system
         rag = MedicalRAG("rag_data/medical_embeddings.index")

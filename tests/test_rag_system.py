@@ -62,7 +62,7 @@ def test_faiss_index():
         return False
     
     try:
-        from faiss_utils import FAISSVectorStore
+        from utils.faiss_utils import FAISSVectorStore
         
         vector_store = FAISSVectorStore()
         vector_store.load_index(index_path)
@@ -84,7 +84,7 @@ def test_full_rag_system():
     print("\n🤖 Testing Full RAG System...")
     
     try:
-        from rag import MedicalRAG
+        from utils.rag import MedicalRAG
         
         # Initialize RAG system
         rag = MedicalRAG("rag_data/medical_embeddings.index")
