@@ -8,6 +8,9 @@ import streamlit as st
 import os
 import sys
 import re
+import json
+import traceback
+from datetime import datetime
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from pathlib import Path
@@ -53,6 +56,10 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'chat_context' not in st.session_state:
     st.session_state.chat_context = []
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
 
 @st.cache_resource
 def load_medical_search():
@@ -311,6 +318,161 @@ def get_keyword_summary(query: str, results: List[Dict]) -> str:
     
     return summary
 
+def is_complex_query(query: str) -> bool:
+    """Determine if a query requires task decomposition"""
+    complexity_indicators = [
+        'multiple conditions', 'and', 'with', 'also have', 'plus', 'additionally',
+        'interactions', 'safe during', 'pregnant', 'elderly', 'child',
+        'taking medication', 'side effects', 'contraindications'
+    ]
+    
+    query_lower = query.lower()
+    # Count conditions mentioned
+    medical_conditions = ['diabetes', 'hypertension', 'heart', 'kidney', 'liver', 'pregnancy', 'cancer', 'asthma']
+    condition_count = len([word for word in medical_conditions if word in query_lower])
+    
+    # Check for complexity indicators
+    has_complexity_words = any(indicator in query_lower for indicator in complexity_indicators)
+    
+    # Consider complex if multiple conditions OR complexity indicators present
+    return condition_count > 1 or has_complexity_words or len(query.split()) > 15
+
+def decompose_medical_query(query: str, client) -> Optional[Dict]:
+    """Break down complex medical queries into sub-tasks"""
+    try:
+        decomposition_prompt = f"""
+        Analyze this medical query and break it down into logical sub-tasks: "{query}"
+        
+        Return a JSON structure with:
+        {{
+            "main_topic": "Brief description of the main question",
+            "conditions": ["condition1", "condition2"],
+            "sub_questions": ["specific question 1", "specific question 2"],
+            "safety_considerations": ["safety aspect 1", "safety aspect 2"],
+            "complexity_level": "low/medium/high"
+        }}
+        
+        Only return valid JSON, no other text.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": decomposition_prompt}],
+            max_tokens=400,
+            temperature=0.1
+        )
+        
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        st.error(f"Query decomposition failed: {e}")
+        return None
+
+def execute_complex_search(decomposition: Dict, vector_store) -> Dict:
+    """Execute searches for each sub-task of a complex query"""
+    results = {
+        "condition_searches": {},
+        "safety_searches": {},
+        "question_searches": {}
+    }
+    
+    # Search for each condition
+    for condition in decomposition.get("conditions", []):
+        if condition.strip():
+            condition_results = search_documents(vector_store, f"{condition} symptoms treatment management", max_results=3)
+            results["condition_searches"][condition] = condition_results
+    
+    # Search for safety considerations
+    for safety in decomposition.get("safety_considerations", []):
+        if safety.strip():
+            safety_results = search_documents(vector_store, safety, max_results=2)
+            results["safety_searches"][safety] = safety_results
+    
+    # Search for specific sub-questions
+    for question in decomposition.get("sub_questions", []):
+        if question.strip():
+            question_results = search_documents(vector_store, question, max_results=3)
+            results["question_searches"][question] = question_results
+    
+    return results
+
+def synthesize_complex_response(user_message: str, decomposition: Dict, complex_results: Dict, chat_history: List[Dict], client) -> str:
+    """Synthesize comprehensive response from multiple search results"""
+    try:
+        # Format all search results
+        formatted_results = "RESEARCH FINDINGS:\n\n"
+        
+        # Add condition information
+        if complex_results["condition_searches"]:
+            formatted_results += "CONDITIONS RESEARCHED:\n"
+            for condition, results in complex_results["condition_searches"].items():
+                formatted_results += f"\n{condition.upper()}:\n"
+                for i, result in enumerate(results[:2], 1):
+                    formatted_results += f"{i}. {result['text'][:200]}...\n"
+        
+        # Add safety information
+        if complex_results["safety_searches"]:
+            formatted_results += "\nSAFETY CONSIDERATIONS:\n"
+            for safety, results in complex_results["safety_searches"].items():
+                formatted_results += f"\n{safety}:\n"
+                for i, result in enumerate(results[:1], 1):
+                    formatted_results += f"{i}. {result['text'][:200]}...\n"
+        
+        # Add specific question answers
+        if complex_results["question_searches"]:
+            formatted_results += "\nSPECIFIC QUESTIONS:\n"
+            for question, results in complex_results["question_searches"].items():
+                formatted_results += f"\nQ: {question}\n"
+                if results:
+                    formatted_results += f"A: {results[0]['text'][:200]}...\n"
+        
+        # Build conversation context
+        conversation_context = ""
+        if chat_history:
+            recent_messages = chat_history[-3:]  # Last 3 exchanges
+            for msg in recent_messages:
+                conversation_context += f"User: {msg['user']}\nAssistant: {msg['assistant'][:100]}...\n\n"
+        
+        synthesis_prompt = f"""
+        You are MediAid AI providing comprehensive medical information analysis.
+        
+        ORIGINAL COMPLEX QUERY: "{user_message}"
+        
+        CONVERSATION HISTORY:
+        {conversation_context}
+        
+        DECOMPOSED RESEARCH:
+        Main Topic: {decomposition.get('main_topic', 'N/A')}
+        Conditions: {', '.join(decomposition.get('conditions', []))}
+        Complexity: {decomposition.get('complexity_level', 'medium')}
+        
+        {formatted_results}
+        
+        Provide a comprehensive, structured response that:
+        
+        1. **OVERVIEW**: Summarize the main medical question
+        2. **CONDITION ANALYSIS**: Address each condition mentioned with key facts
+        3. **SAFETY CONSIDERATIONS**: Highlight important safety information, interactions, contraindications
+        4. **SPECIFIC RECOMMENDATIONS**: Answer each sub-question clearly
+        5. **ACTION PLAN**: Provide clear next steps
+        6. **MEDICAL DISCLAIMER**: Emphasize professional consultation
+        
+        Format with clear headings, bullet points, and easy-to-understand language.
+        Be thorough but concise. Focus on evidence-based information.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": synthesis_prompt}],
+            max_tokens=1000,
+            temperature=0.2
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        st.error(f"Response synthesis failed: {e}")
+        return "I apologize, but I encountered an error while analyzing your complex query. Please try rephrasing your question or ask about specific conditions separately."
+
 def get_conversational_response(user_message: str, chat_history: List[Dict], results: List[Dict], document_context: str = "") -> str:
     """Generate conversational response with context from chat history and search results"""
     try:
@@ -413,6 +575,11 @@ def render_navigation():
         st.session_state.selected_disease = None
         st.rerun()
     
+    if st.sidebar.button("📜 Search History", use_container_width=True, key="nav_history"):
+        st.session_state.current_page = 'history'
+        st.session_state.selected_disease = None
+        st.rerun()
+    
     # Show current disease if selected
     if st.session_state.selected_disease:
         st.sidebar.markdown("---")
@@ -447,10 +614,25 @@ def render_navigation():
         st.sidebar.success("🤖 AI Summaries: Enabled")
         use_ai = st.sidebar.checkbox("Use AI-powered summaries", value=True, key="ai_summaries_diabetes")
         
+        # Task Decomposition Feature
+        st.sidebar.success("🧠 Task Decomposition: Enabled")
+        st.sidebar.info("Complex queries will be automatically analyzed and broken down into sub-tasks")
+        
         # Removed test button for production
     else:
         st.sidebar.warning("🤖 AI Summaries: Disabled (API key not configured)")
+        st.sidebar.warning("🧠 Task Decomposition: Disabled (requires OpenAI API)")
         use_ai = False
+    
+    # Logout button at the bottom
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"👤 **Logged in as:** {st.session_state.username}")
+    
+    if st.sidebar.button("🚪 Logout", use_container_width=True, key="nav_logout"):
+        st.session_state.authenticated = False
+        st.session_state.username = ""
+        st.session_state.current_page = 'home'
+        st.rerun()
 
 def render_home_page(vector_store):
     """Render the home page"""
@@ -545,6 +727,45 @@ def render_home_page(vector_store):
     #         - 📖 Comprehensive responses
     #         - 🤖 AI-powered insights
     #         """)
+    
+    # Task Decomposition Feature Demo
+    st.markdown("---")
+    st.subheader("🧠 Advanced Task Decomposition")
+    st.markdown("**New Agentic AI Feature:** Automatically breaks down complex medical queries into manageable sub-tasks")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **🔍 What It Does:**
+        - Analyzes complex multi-condition queries
+        - Breaks them into specific research tasks
+        - Searches each aspect systematically
+        - Synthesizes comprehensive responses
+        """)
+        
+        st.markdown("""
+        **🎯 Perfect For:**
+        - Multiple medical conditions
+        - Drug interactions & safety
+        - Pregnancy-related questions
+        - Elderly care considerations
+        """)
+    
+    with col2:
+        st.markdown("""
+        **💡 Example Complex Queries:**
+        - *"I have diabetes and high blood pressure, am pregnant, what medications are safe?"*
+        - *"Elderly patient with heart disease and kidney problems - drug interactions?"*
+        - *"Child with asthma and allergies - vaccine safety considerations?"*
+        """)
+        
+        # Demo button
+        if st.button("🚀 Try Complex Query Demo", key="complex_demo"):
+            demo_query = "I have diabetes and high blood pressure and I'm pregnant. What medications are safe?"
+            st.session_state.search_query = demo_query
+            st.session_state.current_page = 'search'
+            st.rerun()
     
     # Quick search
     st.markdown("---")
@@ -666,6 +887,9 @@ def render_search_page(vector_store):
                     'assistant': f"**🦙 LlamaIndex Response:**\n\n{llamaindex_response}"
                 })
                 
+                # Save to search history
+                save_search_history(st.session_state.username, user_message, llamaindex_response, "llamaindex_search")
+                
                 # Show response immediately
                 st.success("✅ LlamaIndex response generated!")
                 with st.container():
@@ -679,9 +903,89 @@ def render_search_page(vector_store):
                 use_llamaindex = False
         
         if not use_llamaindex or not llamaindex_engine:
-            # Use original FAISS search
-            with st.spinner("Searching medical database and generating response..."):
-                results = search_documents(vector_store, user_message, max_results=8)
+            # Check if this is a complex query that needs decomposition
+            is_complex = is_complex_query(user_message)
+            
+            if is_complex and use_ai:
+                # Complex query path with task decomposition
+                st.info("🧠 **Complex Query Detected** - Using advanced task decomposition...")
+                
+                with st.spinner("🔍 Analyzing and decomposing your complex medical question..."):
+                    from openai import OpenAI
+                    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+                    
+                    # Step 1: Decompose the query
+                    decomposition = decompose_medical_query(user_message, client)
+                
+                if decomposition:
+                    # Show decomposition to user
+                    with st.expander("🧩 Query Analysis", expanded=True):
+                        st.markdown(f"**Main Topic:** {decomposition.get('main_topic', 'N/A')}")
+                        st.markdown(f"**Conditions to Research:** {', '.join(decomposition.get('conditions', []))}")
+                        st.markdown(f"**Complexity Level:** {decomposition.get('complexity_level', 'medium').title()}")
+                        if decomposition.get('sub_questions'):
+                            st.markdown("**Sub-questions to Address:**")
+                            for q in decomposition['sub_questions']:
+                                st.write(f"• {q}")
+                    
+                    # Step 2: Execute multi-faceted search
+                    with st.spinner("🔍 Conducting comprehensive research across multiple medical areas..."):
+                        complex_results = execute_complex_search(decomposition, vector_store)
+                    
+                    # Count total sources found
+                    total_sources = sum(len(results) for category in complex_results.values() for results in category.values())
+                    st.success(f"✅ Found {total_sources} relevant medical sources across multiple research areas")
+                    
+                    # Step 3: Synthesize comprehensive response
+                    with st.spinner("🤖 Synthesizing comprehensive response from multiple research streams..."):
+                        complex_response = synthesize_complex_response(user_message, decomposition, complex_results, st.session_state.chat_history, client)
+                    
+                    if complex_response:
+                        # Add to chat history
+                        st.session_state.chat_history.append({
+                            'user': user_message,
+                            'assistant': complex_response
+                        })
+                        
+                        # Save to search history with special type
+                        save_search_history(st.session_state.username, user_message, complex_response, "complex_analysis")
+                        
+                        # Show response
+                        st.success("✅ Comprehensive analysis complete!")
+                        with st.container():
+                            st.markdown(f"**🧑 You:** {user_message}")
+                            st.info("🧠 Response generated using Advanced Task Decomposition")
+                            st.markdown(f"**🤖 MediAid AI:** {complex_response}")
+                        
+                        # Show detailed sources by category
+                        with st.expander("📚 Research Sources by Category"):
+                            if complex_results["condition_searches"]:
+                                st.markdown("### 🩺 Condition Research")
+                                for condition, results in complex_results["condition_searches"].items():
+                                    st.markdown(f"**{condition}:**")
+                                    for i, result in enumerate(results[:2], 1):
+                                        st.write(f"{i}. {result['source']} - {result['text'][:150]}...")
+                            
+                            if complex_results["safety_searches"]:
+                                st.markdown("### ⚠️ Safety Research")
+                                for safety, results in complex_results["safety_searches"].items():
+                                    st.markdown(f"**{safety}:**")
+                                    for i, result in enumerate(results[:1], 1):
+                                        st.write(f"{i}. {result['source']} - {result['text'][:150]}...")
+                        
+                        st.rerun()
+                    else:
+                        st.error("❌ Complex analysis failed. Falling back to standard search.")
+                        # Fall back to standard search
+                        results = search_documents(vector_store, user_message, max_results=8)
+                else:
+                    st.warning("⚠️ Could not decompose query. Using standard search.")
+                    # Fall back to standard search
+                    results = search_documents(vector_store, user_message, max_results=8)
+            else:
+                # Standard search path
+                with st.spinner("Searching medical database and generating response..."):
+                    results = search_documents(vector_store, user_message, max_results=8)
         
         if results:
             # Generate conversational response
@@ -694,6 +998,9 @@ def render_search_page(vector_store):
                         'user': user_message,
                         'assistant': ai_response
                     })
+                    
+                    # Save to search history
+                    save_search_history(st.session_state.username, user_message, ai_response, "ai_search")
                     
                     # Show latest response immediately
                     st.success("Response generated!")
@@ -721,6 +1028,9 @@ def render_search_page(vector_store):
                     'user': user_message,
                     'assistant': summary
                 })
+                
+                # Save to search history
+                save_search_history(st.session_state.username, user_message, summary, "keyword_search")
                 
                 st.success("Response generated!")
                 with st.container():
@@ -940,6 +1250,9 @@ def render_upload_page(vector_store):
                                 'assistant': ai_response
                             })
                             
+                            # Save to search history
+                            save_search_history(st.session_state.username, user_message, ai_response, "document_analysis")
+                            
                             # Show response immediately
                             st.success("✅ Analysis complete!")
                             with st.container():
@@ -976,6 +1289,9 @@ def render_upload_page(vector_store):
                             'user': user_message,
                             'assistant': summary
                         })
+                        
+                        # Save to search history
+                        save_search_history(st.session_state.username, user_message, summary, "document_keyword_analysis")
                         
                         st.success("✅ Analysis complete!")
                         with st.container():
@@ -1229,8 +1545,280 @@ def render_examples_page(vector_store):
                     st.session_state.current_page = 'browse'
                     st.rerun()
 
+def render_history_page():
+    """Render the search history page"""
+    st.title("📜 Search History")
+    st.markdown(f"**Search history for user:** {st.session_state.username}")
+    
+    # Load user history
+    user_history = load_user_history(st.session_state.username)
+    
+    if not user_history:
+        st.info("🔍 No search history found. Start searching to build your history!")
+        st.markdown("### 🚀 Quick Actions")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔍 Start Searching", use_container_width=True):
+                st.session_state.current_page = 'search'
+                st.rerun()
+        with col2:
+            if st.button("📤 Upload & Ask", use_container_width=True):
+                st.session_state.current_page = 'upload'
+                st.rerun()
+        return
+    
+    # Filter options
+    st.subheader("🔍 Filter History")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        search_type_filter = st.selectbox(
+            "Filter by search type:",
+            ["All", "ai_search", "document_analysis", "llamaindex_search", "keyword_search", "document_keyword_analysis"]
+        )
+    
+    with col2:
+        entries_to_show = st.selectbox("Show entries:", [10, 25, 50, 100], index=1)
+    
+    # Filter history
+    filtered_history = user_history
+    if search_type_filter != "All":
+        filtered_history = [entry for entry in user_history if entry.get('search_type') == search_type_filter]
+    
+    # Sort by timestamp (newest first)
+    filtered_history = sorted(filtered_history, key=lambda x: x.get('timestamp', ''), reverse=True)
+    filtered_history = filtered_history[:entries_to_show]
+    
+    # Search within history
+    search_term = st.text_input("🔍 Search within your history:", placeholder="Enter keywords to find specific searches...")
+    if search_term:
+        search_term_lower = search_term.lower()
+        filtered_history = [
+            entry for entry in filtered_history 
+            if search_term_lower in entry.get('query', '').lower() or search_term_lower in entry.get('response', '').lower()
+        ]
+        st.info(f"Found {len(filtered_history)} entries matching '{search_term}'")
+    
+    # Display history
+    st.subheader(f"📝 Recent Searches ({len(filtered_history)} entries)")
+    
+    if not filtered_history:
+        st.warning("No entries match your current filters.")
+        return
+    
+    for i, entry in enumerate(filtered_history):
+        timestamp = entry.get('timestamp', 'Unknown time')
+        query = entry.get('query', 'No query')
+        response = entry.get('response', 'No response')
+        search_type = entry.get('search_type', 'unknown')
+        full_length = entry.get('full_response_length', len(response))
+        
+        # Format timestamp
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            formatted_time = timestamp
+        
+        # Search type emoji
+        type_emoji = {
+            'ai_search': '🤖',
+            'document_analysis': '📄',
+            'llamaindex_search': '🦙',
+            'keyword_search': '🔍',
+            'document_keyword_analysis': '📋'
+        }
+        
+        with st.expander(f"{type_emoji.get(search_type, '🔍')} {query[:50]}{'...' if len(query) > 50 else ''} - {formatted_time}"):
+            st.markdown(f"**🕒 Time:** {formatted_time}")
+            st.markdown(f"**🔍 Search Type:** {search_type.replace('_', ' ').title()}")
+            st.markdown(f"**❓ Query:** {query}")
+            st.markdown(f"**💬 Response:** {response}")
+            
+            if full_length > len(response):
+                st.info(f"📏 Full response was {full_length} characters (truncated for storage)")
+            
+            # Quick actions
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"🔄 Search Again", key=f"research_{i}"):
+                    st.session_state.search_query = query
+                    st.session_state.current_page = 'search'
+                    st.rerun()
+            with col2:
+                if st.button(f"📋 Copy Query", key=f"copy_{i}"):
+                    st.code(query, language="text")
+                    st.success("Query copied to code block!")
+    
+    # Clear history option
+    st.markdown("---")
+    st.subheader("🗑️ Manage History")
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🗑️ Clear All History", type="secondary"):
+            st.session_state.confirm_clear_history = True
+    
+    # Confirmation dialog
+    if getattr(st.session_state, 'confirm_clear_history', False):
+        st.warning("⚠️ Are you sure you want to clear all your search history? This action cannot be undone.")
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            if st.button("✅ Yes, Clear", type="primary"):
+                try:
+                    history_file = os.path.join("history", "history.json")
+                    if os.path.exists(history_file):
+                        with open(history_file, 'r', encoding='utf-8') as f:
+                            history_data = json.load(f)
+                        
+                        # Clear user's history
+                        history_data[st.session_state.username] = []
+                        
+                        with open(history_file, 'w', encoding='utf-8') as f:
+                            json.dump(history_data, f, indent=2, ensure_ascii=False)
+                        
+                        st.success("✅ Search history cleared successfully!")
+                        st.session_state.confirm_clear_history = False
+                        st.rerun()
+                    else:
+                        st.info("No history file found.")
+                except Exception as e:
+                    st.error(f"Failed to clear history: {e}")
+        
+        with col2:
+            if st.button("❌ Cancel"):
+                st.session_state.confirm_clear_history = False
+                st.rerun()
+
+def validate_password(password):
+    """Validate password meets requirements"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    return True, "Password is valid"
+
+def check_credentials(username, password):
+    """Check if username and password are valid"""
+    # Simple hardcoded credentials - you can extend this with a database later
+    valid_users = {
+        "admin": "adminpass",
+        "doctor": "doctorpass",
+        "user": "userpass123",
+        "mediaid": "mediaid2025"
+    }
+    
+    if username in valid_users and valid_users[username] == password:
+        return True
+    return False
+
+def save_search_history(username: str, query: str, response: str, search_type: str = "search"):
+    """Save user search history to JSON file"""
+    try:
+        # Create history directory if it doesn't exist
+        history_dir = "history"
+        if not os.path.exists(history_dir):
+            os.makedirs(history_dir)
+        
+        # History file path
+        history_file = os.path.join(history_dir, "history.json")
+        
+        # Load existing history or create new
+        if os.path.exists(history_file):
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+        else:
+            history_data = {}
+        
+        # Initialize user history if not exists
+        if username not in history_data:
+            history_data[username] = []
+        
+        # Create search entry
+        search_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "query": query,
+            "response": response[:500] + "..." if len(response) > 500 else response,  # Truncate long responses
+            "search_type": search_type,  # 'search', 'upload', 'browse'
+            "full_response_length": len(response)
+        }
+        
+        # Add to user history (keep last 100 searches per user)
+        history_data[username].append(search_entry)
+        if len(history_data[username]) > 100:
+            history_data[username] = history_data[username][-100:]
+        
+        # Save to file
+        with open(history_file, 'w', encoding='utf-8') as f:
+            json.dump(history_data, f, indent=2, ensure_ascii=False)
+            
+        return True
+        
+    except Exception as e:
+        st.error(f"Failed to save search history: {e}")
+        return False
+
+def load_user_history(username: str) -> List[Dict]:
+    """Load search history for a specific user"""
+    try:
+        history_file = os.path.join("history", "history.json")
+        
+        if not os.path.exists(history_file):
+            return []
+        
+        with open(history_file, 'r', encoding='utf-8') as f:
+            history_data = json.load(f)
+        
+        return history_data.get(username, [])
+        
+    except Exception as e:
+        st.error(f"Failed to load search history: {e}")
+        return []
+
+def render_login_page():
+    """Render the login page"""
+    st.title("🏥 MediAid AI - Login")
+    st.markdown("Welcome to MediAid AI! Please login to access the medical information system.")
+    
+    # Center the login form
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("### 🔐 User Login")
+        
+        # Login form
+        with st.form("login_form"):
+            username = st.text_input("👤 Username", placeholder="Enter your username")
+            password = st.text_input("🔒 Password", type="password", placeholder="Enter your password")
+            
+            submitted = st.form_submit_button("🚀 Login", use_container_width=True)
+            
+            if submitted:
+                if not username:
+                    st.error("❌ Please enter a username")
+                elif not password:
+                    st.error("❌ Please enter a password")
+                else:
+                    # Validate password
+                    is_valid, message = validate_password(password)
+                    if not is_valid:
+                        st.error(f"❌ {message}")
+                    else:
+                        # Check credentials
+                        if check_credentials(username, password):
+                            st.session_state.authenticated = True
+                            st.session_state.username = username
+                            st.success(f"✅ Welcome, {username}!")
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("❌ Invalid username or password")
+
 def main():
     """Main Streamlit app with navigation"""
+    
+    # Check authentication first
+    if not st.session_state.authenticated:
+        render_login_page()
+        return
     
     # Load medical search systems
     vector_store = load_medical_search()
@@ -1244,7 +1832,7 @@ def main():
         st.error("Failed to load medical database. Please check the FAISS index file.")
         return
     
-    # Render navigation
+    # Render navigation (includes logout button at bottom)
     render_navigation()
     
     # Render current page
@@ -1258,7 +1846,9 @@ def main():
         render_browse_page(vector_store)
     elif st.session_state.current_page == 'disease_detail':
         render_disease_detail_page(vector_store)
-    elif st.session_state.current_page == 'examples':
+    elif st.session_state.current_page == 'history':
+        render_history_page()
+    elif st.session_state.current_page == 'faqs':
         render_examples_page(vector_store)
     
     # Footer

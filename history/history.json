@@ -1,0 +1,20 @@
+{
+  "doctor": [
+    {
+      "timestamp": "2025-08-13T14:39:06.544917",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "Mucoepidermoid carcinoma is a type of cancer that can occur in various glands in the body, most commonly in the salivary glands. It is a rare form of cancer that can develop in the mucous-producing cells and the squamous cells in these glands.\n\nIf you or someone you know is concerned about mucoepidermoid carcinoma, it's important to consult with a healthcare professional for a proper diagnosis and treatment plan. They can provide personalized guidance and support based on individual circumstance...",
+      "search_type": "ai_search",
+      "full_response_length": 695
+    }
+  ],
+  "admin": [
+    {
+      "timestamp": "2025-08-13T14:51:41.283375",
+      "query": "I have chest pain, shortness of breath, and dizziness. I also have a history of heart disease and take blood thinners. Should I be concerned?",
+      "response": "**OVERVIEW:**\nThe main medical question is about concerns regarding chest pain, shortness of breath, and dizziness with a history of heart disease and taking blood thinners.\n\n**CONDITION ANALYSIS:**\n- **Heart Disease:**\n  - Genetic Disorders: DNA contains instructions for body function.\n  - Leading Causes of Death: Heart disease is a top cause of death globally.\n\n- **Possible Blood Clot:**\n  - Blood Safety: Risk of infections through unsafe blood.\n  - National Blood Policy: Importance of safe bl...",
+      "search_type": "complex_analysis",
+      "full_response_length": 1431
+    }
+  ]
+}
