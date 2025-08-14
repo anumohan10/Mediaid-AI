@@ -28,7 +28,7 @@ def main():
     print(f"✅ API Key configured: {api_key[:10]}...{api_key[-4:]}")
     
     try:
-        from rag import MedicalRAG
+        from utils.rag import MedicalRAG
         
         print("🤖 Initializing Medical RAG System...")
         rag = MedicalRAG("rag_data/medical_embeddings.index")

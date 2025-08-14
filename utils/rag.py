@@ -23,6 +23,7 @@ class MedicalRAG:
             openai_api_key: OpenAI API key (optional, can be set via environment)
         """
         # Initialize OpenAI client
+        print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
         api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
         if not api_key:
             raise ValueError("OpenAI API key not provided. Please set OPENAI_API_KEY in your .env file or pass it directly.")

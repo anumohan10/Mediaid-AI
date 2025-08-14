@@ -9,11 +9,22 @@ import io
 import logging
 from typing import Dict, List, Optional, Tuple
 from PIL import Image
+import pdfplumber
 import streamlit as st
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+        """Extracts text from a PDF (vector text PDFs like the synthetic ones)."""
+        text_pages = []
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            for page in pdf.pages:
+                txt = page.extract_text() or ""
+                if txt.strip():
+                    text_pages.append(txt.strip())
+        return "\n\n".join(text_pages).strip()
 
 class MedicalOCR:
     """OCR processor for medical documents and images."""
@@ -24,59 +35,49 @@ class MedicalOCR:
         self._initialize_ocr()
     
     def _initialize_ocr(self):
-        """Initialize the OCR engine."""
+        """Initialize OCR engine with a stable default on macOS/Streamlit."""
+    # Prefer Tesseract to avoid torch/EasyOCR native crashes
         try:
-            # Try EasyOCR first (more accurate for medical text)
-            import easyocr
-            self.ocr_engine = easyocr.Reader(['en'])
-            self.engine_type = 'easyocr'
-            logger.info("✅ EasyOCR initialized successfully")
-        except ImportError:
-            try:
-                # Fallback to Tesseract
-                import pytesseract
-                self.ocr_engine = pytesseract
-                self.engine_type = 'tesseract'
-                logger.info("✅ Tesseract OCR initialized successfully")
-            except ImportError:
-                logger.error("❌ No OCR engine available. Please install easyocr or pytesseract")
-                self.ocr_engine = None
-                self.engine_type = None
+            import pytesseract
+        # Hard-set tesseract binary on Homebrew macOS if env not set
+            if not os.getenv("TESSERACT_CMD"):
+                pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
+            self.ocr_engine = pytesseract
+            self.engine_type = 'tesseract'
+            logger.info("✅ Tesseract OCR initialized successfully")
+            return
+        except Exception as e:
+            logger.warning(f"Tesseract init failed: {e}")
+        
+        logger.error("❌ No OCR engine available. Please install pytesseract (and tesseract binary).")
+        self.ocr_engine = None
+        self.engine_type = None
     
     def is_available(self) -> bool:
         """Check if OCR is available."""
         return self.ocr_engine is not None
     
     def preprocess_image(self, image: Image.Image) -> Image.Image:
-        """Preprocess image for better OCR results."""
+        """Robust preprocessing that avoids native crashes and huge memory spikes."""
         try:
-            # Convert to RGB if necessary
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Enhance image for better OCR
-            import cv2
-            import numpy as np
-            
-            # Convert PIL to OpenCV
+        # Convert and downscale to a safe max dimension (helps stability & accuracy)
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+            image = image.copy()
+            image.thumbnail((2200, 2200))  # clamp size
+
+            import cv2, numpy as np
             cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            
-            # Convert to grayscale
+
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-            
-            # Apply Gaussian blur to reduce noise
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            
-            # Apply adaptive thresholding
-            thresh = cv2.adaptiveThreshold(
-                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-            )
-            
-            # Convert back to PIL
-            processed_image = Image.fromarray(thresh)
-            
-            return processed_image
-            
+
+            # Mild denoise; avoid heavy kernels
+            gray = cv2.GaussianBlur(gray, (3, 3), 0)
+
+            # Use Otsu instead of adaptiveThreshold (more stable across platforms)
+            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            return Image.fromarray(thresh)
         except Exception as e:
             logger.warning(f"Image preprocessing failed: {e}. Using original image.")
             return image
@@ -130,8 +131,10 @@ class MedicalOCR:
             if preprocess:
                 processed_image = self.preprocess_image(image)
             else:
-                processed_image = image
-            
+                img = image.copy()
+                img.thumbnail((2200, 2200))  # clamp size
+                processed_image = img
+
             # Extract text based on available engine
             if self.engine_type == 'easyocr':
                 text = self.extract_text_easyocr(processed_image)
@@ -236,68 +239,87 @@ class MedicalOCR:
         
         return analysis
 
-def create_ocr_interface():
-    """Create Streamlit interface for OCR functionality."""
-    st.subheader("📄 Medical Document Reader")
     
-    # Initialize OCR
+def create_ocr_interface():
+    """Create Streamlit interface for OCR / PDF text extraction."""
+    st.subheader("📄 Medical Document Reader")
+
+    # Init OCR (for images). Do not hard-fail if missing.
     if 'ocr_processor' not in st.session_state:
         st.session_state.ocr_processor = MedicalOCR()
-    
     ocr = st.session_state.ocr_processor
-    
-    if not ocr.is_available():
-        st.error("❌ OCR engine not available. Please install required dependencies.")
-        st.info("Run: `pip install easyocr pytesseract opencv-python`")
-        return None
-    
-    # File uploader
+
+    # Status badge only (no early return)
+    if ocr.is_available():
+        st.success(f"OCR available: {ocr.engine_type}")
+    else:
+        st.info("📄 PDF text extraction is available. Image OCR is currently disabled.")
+
     uploaded_file = st.file_uploader(
-        "Upload medical document (image)",
-        type=['png', 'jpg', 'jpeg', 'bmp', 'tiff'],
-        help="Upload an image of a medical report, prescription, or lab result"
+        "Upload medical document (image or PDF)",
+        type=["pdf", "png", "jpg", "jpeg", "bmp", "tiff"],
+        help="Upload a prescription, report, or lab result (PDF preferred for synthetic docs)."
     )
-    
-    if uploaded_file is not None:
-        # Display uploaded image
+
+    # Nothing uploaded yet
+    if uploaded_file is None:
+        return None
+
+    # Determine extension safely
+    try:
+        filename = getattr(uploaded_file, "name", "") or ""
+        suffix = os.path.splitext(filename)[1].lower()
+    except Exception:
+        suffix = ""
+
+    # --- Handle PDF first (works without OCR) ---
+    if suffix == ".pdf":
+        try:
+            with st.spinner("Reading PDF..."):
+                pdf_bytes = uploaded_file.read()
+                text = extract_text_from_pdf_bytes(pdf_bytes)  # uses pdfplumber
+            if text:
+                st.session_state.extracted_text = text
+                st.session_state.document_analysis = ocr.analyze_medical_document(text)
+                st.subheader("📝 Extracted Text")
+                st.text_area("Text from document:", text, height=220)
+                return text
+            else:
+                st.warning("No selectable text found in the PDF (might be a scan). You can try converting pages to images and OCR.")
+                return None
+        except Exception as e:
+            st.error(f"PDF processing error: {e}")
+            return None
+
+    # --- Otherwise treat as image (OCR path) ---
+    try:
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Document", use_container_width=True)
-        
-        # Processing options
-        col1, col2 = st.columns(2)
-        with col1:
-            preprocess = st.checkbox("Enhance image for better OCR", value=True)
-        with col2:
-            if st.button("Extract Text", type="primary"):
-                with st.spinner("Extracting text from image..."):
-                    result = ocr.extract_text_from_image(image, preprocess=preprocess)
-                
-                if result['success']:
-                    st.success("✅ Text extracted successfully!")
-                    
-                    # Store extracted text in session state
-                    st.session_state.extracted_text = result['text']
-                    st.session_state.document_analysis = ocr.analyze_medical_document(result['text'])
-                    
-                    # Display extracted text
-                    st.subheader("📝 Extracted Text:")
-                    st.text_area("Text from document:", result['text'], height=200)
-                    
-                    # Display analysis if available
-                    if st.session_state.document_analysis:
-                        st.subheader("🔍 Document Analysis:")
-                        for category, items in st.session_state.document_analysis.items():
-                            st.write(f"**{category.title()}:**")
-                            for item in items:
-                                st.write(f"- {item}")
-                    
-                    return result['text']
-                    
-                else:
-                    st.error(f"❌ OCR failed: {result['error']}")
-                    return None
-    
+    except Exception as e:
+        st.error(f"Could not open image: {e}")
+        return None
+
+    st.image(image, caption=filename or "Uploaded Image", use_container_width=True)
+
+    preprocess = st.checkbox("Enhance image for better OCR", value=True)
+    if st.button("Extract Text", type="primary"):
+        if not ocr.is_available():
+            st.error("OCR engine not available. Install EasyOCR or Tesseract to process images.")
+            return None
+        with st.spinner("Running OCR..."):
+            result = ocr.extract_text_from_image(image, preprocess=preprocess)
+        if result.get("success"):
+            text = result.get("text", "")
+            st.session_state.extracted_text = text
+            st.session_state.document_analysis = ocr.analyze_medical_document(text)
+            st.subheader("📝 Extracted Text")
+            st.text_area("Text from document:", text, height=220)
+            return text
+        else:
+            st.error(f"OCR failed: {result.get('error','unknown error')}")
+            return None
+
     return None
+
 
 # Test function for OCR
 def test_ocr():

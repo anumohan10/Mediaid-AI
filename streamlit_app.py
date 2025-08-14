@@ -10,9 +10,11 @@ import sys
 import re
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 # Add utils to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
@@ -41,7 +43,7 @@ if 'chat_context' not in st.session_state:
 def load_medical_search():
     """Load the medical search system"""
     try:
-        from faiss_utils import FAISSVectorStore
+        from utils.faiss_utils import FAISSVectorStore
         
         vector_store = FAISSVectorStore()
         vector_store.load_index("rag_data/medical_embeddings.index")
