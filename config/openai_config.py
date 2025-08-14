@@ -32,8 +32,18 @@ def validate_openai_setup() -> bool:
         print("❌ OpenAI API key not found!")
         print("\n💡 How to set it up:")
         print("   Option 1 (Recommended): Set environment variable")
-        print("     Windows: $env:OPENAI_API_KEY='your-key-here'")
-        print("     Or run: setup_openai.bat")
+        
+        # Cross-platform instructions
+        import platform
+        system = platform.system().lower()
+        if system == "windows":
+            print("     Windows PowerShell: $env:OPENAI_API_KEY='your-key-here'")
+            print("     Windows CMD: set OPENAI_API_KEY=your-key-here")
+            print("     Or run: setup_openai.bat")
+        else:  # macOS/Linux
+            print("     macOS/Linux: export OPENAI_API_KEY='your-key-here'")
+            print("     Or run: source setup_openai.sh")
+        
         print()
         print("   Option 2: Edit config/openai_config.py")
         print("     Uncomment and set HARDCODED_API_KEY")

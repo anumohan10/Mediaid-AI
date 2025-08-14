@@ -35,13 +35,25 @@ class MedicalOCR:
         self._initialize_ocr()
     
     def _initialize_ocr(self):
-        """Initialize OCR engine with a stable default on macOS/Streamlit."""
-    # Prefer Tesseract to avoid torch/EasyOCR native crashes
+        """Initialize OCR engine with cross-platform support."""
+        # Prefer Tesseract to avoid torch/EasyOCR native crashes
         try:
             import pytesseract
-        # Hard-set tesseract binary on Homebrew macOS if env not set
+            from .platform_utils import get_tesseract_default_paths
+            
+            # Set tesseract binary path based on OS if env not set
             if not os.getenv("TESSERACT_CMD"):
-                pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
+                # Try default paths for current platform
+                for tesseract_path in get_tesseract_default_paths():
+                    if os.path.exists(tesseract_path):
+                        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+                        break
+                else:
+                    # Fallback: assume it's in PATH
+                    pytesseract.pytesseract.tesseract_cmd = "tesseract"
+            else:
+                pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD")
+                
             self.ocr_engine = pytesseract
             self.engine_type = 'tesseract'
             logger.info("✅ Tesseract OCR initialized successfully")

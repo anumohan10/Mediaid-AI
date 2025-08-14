@@ -1,0 +1,97 @@
+{
+  "doctor": [
+    {
+      "timestamp": "2025-08-13T14:39:06.544917",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "Mucoepidermoid carcinoma is a type of cancer that can occur in various glands in the body, most commonly in the salivary glands. It is a rare form of cancer that can develop in the mucous-producing cells and the squamous cells in these glands.\n\nIf you or someone you know is concerned about mucoepidermoid carcinoma, it's important to consult with a healthcare professional for a proper diagnosis and treatment plan. They can provide personalized guidance and support based on individual circumstance...",
+      "search_type": "ai_search",
+      "full_response_length": 695
+    },
+    {
+      "timestamp": "2025-08-14T15:59:19.684067",
+      "query": "medical reports?",
+      "response": "It looks like you uploaded a medical document with a prescription for Frances Spence. The prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once a day for 10 days. The notes mention either taking the medication with food or monitoring blood pressure.\n\nRegarding the medications:\n1. Atorvastatin is commonly used to lower cholesterol levels.\n2. Metoprolol is a beta-blocker often used to treat high blood pressure and certain heart condit...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1034
+    },
+    {
+      "timestamp": "2025-08-14T15:59:48.810248",
+      "query": "medical reports?",
+      "response": "It looks like you uploaded a medical document for Frances Spence with a prescription from Dr. Gwendolyn Campbell. The prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once a day for 10 days. The notes mention either taking the medication with food or monitoring blood pressure.\n\nTo break it down:\n1. Atorvastatin helps lower cholesterol levels.\n2. Metoprolol is used for high blood pressure and certain heart conditions.\n3. Levothyroxin...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 971
+    },
+    {
+      "timestamp": "2025-08-14T16:00:30.469582",
+      "query": "what medications can we take?",
+      "response": "It looks like Frances Spence's prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once a day for 10 days. \n\nTo break it down:\n1. Atorvastatin helps lower cholesterol levels.\n2. Metoprolol is used for high blood pressure and certain heart conditions.\n3. Levothyroxine is a thyroid hormone replacement for hypothyroidism.\n\nBased on the prescription, Frances can take these medications as directed by Dr. Gwendolyn Campbell. Remember to foll...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 804
+    },
+    {
+      "timestamp": "2025-08-14T16:02:09.345688",
+      "query": "what is mucoepidermoid carcinoma in situ?",
+      "response": "Mucoepidermoid carcinoma in situ is a type of cancer that starts in the salivary glands. It's a non-invasive form of the cancer, meaning it hasn't spread beyond the original site. Treatment options may include surgery, radiation therapy, or a combination of both.\n\nIf you or someone you know has been diagnosed with mucoepidermoid carcinoma in situ, it's important to consult with healthcare professionals for personalized treatment options and guidance. Your healthcare team can provide the best cou...",
+      "search_type": "ai_search",
+      "full_response_length": 621
+    },
+    {
+      "timestamp": "2025-08-14T16:17:48.948875",
+      "query": "what does this medical report means?",
+      "response": "Based on the medical document you uploaded, it seems to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, with no apparent brain metastases ...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1341
+    },
+    {
+      "timestamp": "2025-08-14T16:18:16.905272",
+      "query": "what does this medical report means?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, indicating no apparent brain met...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1366
+    },
+    {
+      "timestamp": "2025-08-14T16:20:15.275451",
+      "query": "explain medical report?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, indicating no apparent brain met...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1366
+    },
+    {
+      "timestamp": "2025-08-14T17:20:12.520538",
+      "query": "what in given medical report and what medications are required?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a Whole Body PET-CT scan using MF2-fluoro-2-deoxy-D-glucose (8E-EDG). The scan was done from the vertex to mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110mg/dl. \n\nIn the observations, it mentions normal physiological tracer distribution in the head and neck, as well as findings in the maxillary sinus and a lesion with overlying cortical thinning....",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1358
+    },
+    {
+      "timestamp": "2025-08-14T17:21:22.115818",
+      "query": "what in given medical report and what medications are required?",
+      "response": "1. **Overview**:\n   - The uploaded medical document appears to be a report on a PET-CT scan procedure involving the administration of FDG (fluoro-2-deoxy-D-glucose) for imaging purposes.\n\n2. **Key Facts**:\n   - The procedure involved the administration of FDG and subsequent PET-CT imaging from the vertex to mid-thigh.\n   - Oral contrast was given for bowel opacification before the scan.\n   - The blood glucose level at the time of FDG injection was 110mg/dl.\n   - Observations included normal phys...",
+      "search_type": "llamaindex_document_analysis",
+      "full_response_length": 1459
+    }
+  ],
+  "admin": [
+    {
+      "timestamp": "2025-08-13T14:51:41.283375",
+      "query": "I have chest pain, shortness of breath, and dizziness. I also have a history of heart disease and take blood thinners. Should I be concerned?",
+      "response": "**OVERVIEW:**\nThe main medical question is about concerns regarding chest pain, shortness of breath, and dizziness with a history of heart disease and taking blood thinners.\n\n**CONDITION ANALYSIS:**\n- **Heart Disease:**\n  - Genetic Disorders: DNA contains instructions for body function.\n  - Leading Causes of Death: Heart disease is a top cause of death globally.\n\n- **Possible Blood Clot:**\n  - Blood Safety: Risk of infections through unsafe blood.\n  - National Blood Policy: Importance of safe bl...",
+      "search_type": "complex_analysis",
+      "full_response_length": 1431
+    },
+    {
+      "timestamp": "2025-08-13T15:42:12.851499",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "Mucoepidermoid carcinoma is a type of cancer that can occur in various parts of the body, but it is most commonly found in the salivary glands. This type of cancer is made up of both mucous-producing cells and epidermal (skin-like) cells.\n\nIf you or someone you know has been diagnosed with mucoepidermoid carcinoma, it's important to work closely with healthcare professionals to determine the best treatment plan. Treatment options may include surgery, radiation therapy, and chemotherapy, dependin...",
+      "search_type": "ai_search",
+      "full_response_length": 856
+    },
+    {
+      "timestamp": "2025-08-13T15:42:38.879768",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "1. **Overview**: Mucoepidermoid carcinoma is a type of cancer that can develop in various glands throughout the body, most commonly in the salivary glands. It is characterized by a combination of mucous-producing cells and epidermal-like cells.\n\n2. **Key Facts**:\n   - Mucoepidermoid carcinoma is the most common type of salivary gland malignancy.\n   - Symptoms may include a painless mass or swelling in the affected gland, difficulty swallowing, facial paralysis, or persistent pain in the area.\n  ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1594
+    }
+  ]
+}
