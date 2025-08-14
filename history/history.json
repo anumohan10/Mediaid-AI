@@ -55,6 +55,20 @@
       "response": "Based on the medical document you uploaded, it appears to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, indicating no apparent brain met...",
       "search_type": "faiss_document_analysis",
       "full_response_length": 1366
+    },
+    {
+      "timestamp": "2025-08-14T17:20:12.520538",
+      "query": "what in given medical report and what medications are required?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a Whole Body PET-CT scan using MF2-fluoro-2-deoxy-D-glucose (8E-EDG). The scan was done from the vertex to mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110mg/dl. \n\nIn the observations, it mentions normal physiological tracer distribution in the head and neck, as well as findings in the maxillary sinus and a lesion with overlying cortical thinning....",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1358
+    },
+    {
+      "timestamp": "2025-08-14T17:21:22.115818",
+      "query": "what in given medical report and what medications are required?",
+      "response": "1. **Overview**:\n   - The uploaded medical document appears to be a report on a PET-CT scan procedure involving the administration of FDG (fluoro-2-deoxy-D-glucose) for imaging purposes.\n\n2. **Key Facts**:\n   - The procedure involved the administration of FDG and subsequent PET-CT imaging from the vertex to mid-thigh.\n   - Oral contrast was given for bowel opacification before the scan.\n   - The blood glucose level at the time of FDG injection was 110mg/dl.\n   - Observations included normal phys...",
+      "search_type": "llamaindex_document_analysis",
+      "full_response_length": 1459
     }
   ],
   "admin": [

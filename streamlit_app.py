@@ -1198,10 +1198,22 @@ def render_upload_page(vector_store):
     api_key = os.getenv('OPENAI_API_KEY')
     use_ai = api_key and api_key != 'your-api-key-here' and len(api_key) > 20
     
+    # Get LlamaIndex engine from session state
+    llamaindex_engine = st.session_state.get('llamaindex_engine', None)
+    
     if use_ai:
         st.sidebar.success("🤖 AI Analysis: Enabled")
     else:
         st.sidebar.warning("🤖 AI Analysis: Disabled (using keyword responses)")
+    
+    # LlamaIndex status for upload page
+    if llamaindex_engine:
+        st.sidebar.success("🦙 LlamaIndex: Available for document analysis")
+        use_llamaindex_upload = st.sidebar.checkbox("Use LlamaIndex for document analysis", value=False, key="use_llamaindex_upload")
+        st.sidebar.info("LlamaIndex provides enhanced contextual understanding of your documents")
+    else:
+        st.sidebar.warning("🦙 LlamaIndex: Not available")
+        use_llamaindex_upload = False
     
     # OCR Status indicator
     if ocr_available:
@@ -1256,7 +1268,12 @@ def render_upload_page(vector_store):
         
         # Suggested questions
         st.subheader("💡 Suggested Questions")
-        st.markdown("Click any question below to ask about your document:")
+        
+        # Show which analysis method will be used
+        if use_llamaindex_upload and llamaindex_engine:
+            st.info("🦙 **LlamaIndex Enhanced Analysis** - Click any question below for advanced AI analysis of your document:")
+        else:
+            st.info("⚡ **FAISS + AI Analysis** - Click any question below to analyze your document:")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -1361,19 +1378,82 @@ def render_upload_page(vector_store):
             Please answer the user's question based on the uploaded document content and provide additional relevant medical information if helpful.
             """
             
-            # Search for relevant documents
-            with st.spinner("Analyzing your document and searching medical database..."):
-                try:
-                    results = search_documents(vector_store, enhanced_query, max_results=5)
-                    st.success(f"✅ Found {len(results)} relevant medical references")
-                except Exception as e:
-                    st.error(f"❌ Search error: {e}")
-                    results = []
+            # Choose search method based on user preference
+            if use_llamaindex_upload and llamaindex_engine:
+                # Use LlamaIndex for enhanced document analysis
+                st.info("🦙 Using LlamaIndex for enhanced document analysis...")
+                
+                with st.spinner("🧠 Analyzing document with advanced AI..."):
+                    try:
+                        # Create a more detailed prompt for LlamaIndex with document context
+                        llamaindex_prompt = f"""
+                        Based on the uploaded medical document and medical knowledge base, please provide a comprehensive analysis.
+                        
+                        UPLOADED DOCUMENT CONTENT:
+                        {document_context}
+                        
+                        USER'S QUESTION:
+                        {user_message}
+                        
+                        Please provide:
+                        1. **Document Analysis**: What the uploaded document shows
+                        2. **Answer to Question**: Direct response to the user's question
+                        3. **Medical Context**: Additional relevant medical information
+                        4. **Recommendations**: Next steps or considerations
+                        
+                        Base your response on both the document content and medical knowledge.
+                        """
+                        
+                        llamaindex_response = search_documents_llamaindex(llamaindex_engine, llamaindex_prompt)
+                        
+                        if llamaindex_response:
+                            # Add to upload-specific chat history
+                            st.session_state.upload_chat_history.append({
+                                'user': user_message,
+                                'assistant': llamaindex_response
+                            })
+                            
+                            # Save to search history
+                            save_search_history(st.session_state.username, user_message, llamaindex_response, "llamaindex_document_analysis")
+                            
+                            # Show response immediately
+                            st.success("✅ LlamaIndex analysis complete!")
+                            with st.container():
+                                st.markdown(f"**🧑 You:** {user_message}")
+                                st.info("🦙 Response generated using LlamaIndex with your uploaded document")
+                                st.markdown(f"**🤖 MediAid AI:** {llamaindex_response}")
+                            
+                            # Show document context used
+                            with st.expander("📄 Document Context Used"):
+                                st.markdown("**Your Uploaded Document:**")
+                                st.text_area("Document Content:", document_context, height=200, disabled=True)
+                            
+                            return
+                        else:
+                            st.warning("⚠️ LlamaIndex analysis failed. Falling back to FAISS search.")
+                            use_llamaindex_upload = False
+                    except Exception as e:
+                        st.error(f"❌ LlamaIndex error: {e}")
+                        st.warning("⚠️ Falling back to FAISS search.")
+                        use_llamaindex_upload = False
+            
+            # Standard FAISS search for document analysis
+            if not use_llamaindex_upload:
+                st.info("⚡ Using FAISS search for document analysis...")
+                
+                # Search for relevant documents
+                with st.spinner("Analyzing your document and searching medical database..."):
+                    try:
+                        results = search_documents(vector_store, enhanced_query, max_results=5)
+                        st.success(f"✅ Found {len(results)} relevant medical references")
+                    except Exception as e:
+                        st.error(f"❌ Search error: {e}")
+                        results = []
             
             if results:
-                # Generate response
+                # Generate response using FAISS + AI
                 if use_ai:
-                    st.info("🤖 Generating AI response...")
+                    st.info("🤖 Generating AI response with FAISS search results...")
                     try:
                         ai_response = get_conversational_response(enhanced_query, st.session_state.upload_chat_history, results, document_context)
                         
@@ -1385,13 +1465,13 @@ def render_upload_page(vector_store):
                             })
                             
                             # Save to search history
-                            save_search_history(st.session_state.username, user_message, ai_response, "document_analysis")
+                            save_search_history(st.session_state.username, user_message, ai_response, "faiss_document_analysis")
                             
                             # Show response immediately
-                            st.success("✅ Analysis complete!")
+                            st.success("✅ FAISS + AI analysis complete!")
                             with st.container():
                                 st.markdown(f"**🧑 You:** {user_message}")
-                                st.info("📄 Response based on your uploaded document and medical database")
+                                st.info("⚡ Response based on FAISS search + AI analysis of your document")
                                 st.markdown(f"**🤖 MediAid AI:** {ai_response}")
                             
                             # Add sources
@@ -1400,14 +1480,14 @@ def render_upload_page(vector_store):
                                 st.markdown(document_context[:500] + "..." if len(document_context) > 500 else document_context)
                                 st.markdown("---")
                                 
-                                for i, result in enumerate(results[:2], 1):
+                                st.markdown("**🔍 Medical Database References**")
+                                for i, result in enumerate(results[:3], 1):
                                     st.markdown(f"**{i}. {result['source']}** (Relevance: {result['relevance_score']})")
                                     st.markdown(result['text'][:300] + "...")
-                                    if i < 2:
+                                    if i < 3:
                                         st.markdown("---")
                         else:
                             st.error("❌ AI analysis failed. Please try again.")
-                            st.error("Debug: AI response was None or empty")
                     except Exception as e:
                         st.error(f"❌ AI analysis error: {e}")
                         import traceback
@@ -1425,11 +1505,12 @@ def render_upload_page(vector_store):
                         })
                         
                         # Save to search history
-                        save_search_history(st.session_state.username, user_message, summary, "document_keyword_analysis")
+                        save_search_history(st.session_state.username, user_message, summary, "keyword_document_analysis")
                         
-                        st.success("✅ Analysis complete!")
+                        st.success("✅ Keyword analysis complete!")
                         with st.container():
                             st.markdown(f"**🧑 You:** {user_message}")
+                            st.info("🔍 Response based on keyword analysis")
                             st.markdown(f"**🤖 MediAid AI:** {summary}")
                     except Exception as e:
                         st.error(f"❌ Keyword analysis error: {e}")
@@ -1440,6 +1521,31 @@ def render_upload_page(vector_store):
     else:
         # No document uploaded yet
         st.info("👆 Upload a medical document above to start asking questions about it!")
+        
+        # Explain search engine options
+        if llamaindex_engine:
+            st.markdown("---")
+            st.subheader("🔍 Document Analysis Options")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                **⚡ FAISS Search:**
+                - Fast keyword-based analysis
+                - Combines document + medical database
+                - Good for specific medical terms
+                - Reliable and proven approach
+                """)
+            
+            with col2:
+                st.markdown("""
+                **🦙 LlamaIndex Analysis:**
+                - Advanced contextual understanding
+                - Enhanced document comprehension
+                - Better integration of information
+                - AI-powered insights *(Recommended)*
+                """)
         
         # Example section
         st.subheader("📋 What You Can Upload")

@@ -36,19 +36,21 @@ class MedicalOCR:
     
     def _initialize_ocr(self):
         """Initialize OCR engine with cross-platform support."""
-    # Prefer Tesseract to avoid torch/EasyOCR native crashes
+        # Prefer Tesseract to avoid torch/EasyOCR native crashes
         try:
             import pytesseract
-            import platform
+            from .platform_utils import get_tesseract_default_paths
             
             # Set tesseract binary path based on OS if env not set
             if not os.getenv("TESSERACT_CMD"):
-                system = platform.system().lower()
-                if system == "darwin":  # macOS
-                    pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
-                elif system == "windows":  # Windows
-                    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-                # For Linux, tesseract should be in PATH
+                # Try default paths for current platform
+                for tesseract_path in get_tesseract_default_paths():
+                    if os.path.exists(tesseract_path):
+                        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+                        break
+                else:
+                    # Fallback: assume it's in PATH
+                    pytesseract.pytesseract.tesseract_cmd = "tesseract"
             else:
                 pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD")
                 
