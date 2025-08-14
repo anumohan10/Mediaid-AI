@@ -439,38 +439,43 @@ Your response should be:
         st.error(f"AI Response Error: {e}")
         return None
 
-def ask_followup_with_rag(vector_store, question: str, extra_context: str):
+def ask_followup_with_rag(vector_store, question: str, extra_context: str, llamaindex_engine=None):
     """
-    Uses your existing search → LLM pipeline, injecting `extra_context`
-    (the risk result) so the answer is grounded and personalized.
+    If the LlamaIndex toggle is ON and an engine exists, answer with LlamaIndex (no FAISS sources).
+    Otherwise: search FAISS with the user's question, then answer with OpenAI using both the FAISS
+    snippets and the extra_context (risk/document summary).
     """
-    # Build an augmented query that includes risk summary
-    augmented_query = f"""
-User context (model result):
-{extra_context}
+    use_llama = bool(st.session_state.get("use_llamaindex")) and (llamaindex_engine is not None)
 
-User question:
-{question}
-
-Answer clearly. Cite CDC/WHO facts when helpful.
-"""
-
-    results = search_documents(vector_store, augmented_query, max_results=8)
-
-    load_dotenv()
-    api_key = os.getenv('OPENAI_API_KEY')
-    use_ai = api_key and api_key != 'your-api-key-here' and len(api_key) > 20
-
-    if use_ai:
-        reply = get_conversational_response(
-            user_message=question,
-            chat_history=st.session_state.risk_chat_history,
-            results=results,
-            document_context=extra_context,  # <- feeds the risk result into your prompt
+    if use_llama:
+        # LlamaIndex path (no FAISS sources)
+        augmented = (
+            f"USER CONTEXT (risk/report summary):\n{extra_context}\n\n"
+            f"USER QUESTION:\n{question}\n\n"
+            "Give a concise, safe, medically grounded answer."
         )
-        return reply, results
+        reply = search_documents_llamaindex(llamaindex_engine, augmented)
+        return reply, []  # no sources (LlamaIndex handled retrieval)
     else:
-        return get_keyword_summary(question, results), results
+        # FAISS path: search with the *question* (not the big augmented block)
+        results = search_documents(vector_store, question, max_results=8)
+
+        load_dotenv()
+        api_key = os.getenv('OPENAI_API_KEY')
+        use_ai = api_key and api_key != 'your-api-key-here' and len(api_key) > 20
+
+        if use_ai:
+            reply = get_conversational_response(
+                user_message=question,
+                chat_history=st.session_state.risk_chat_history,
+                results=results,
+                document_context=extra_context,  # <- feed risk/report summary as context
+            )
+            return reply, results
+        else:
+            return get_keyword_summary(question, results), results
+
+
 
 def render_navigation():
     """Render navigation sidebar"""
@@ -1121,11 +1126,12 @@ def render_upload_page(vector_store):
             • Glucose tests
             • Hormone levels
             """)
+            
 def render_risk_page(vector_store):
-    """Risk prediction forms + post-result RAG Q&A using pipelines."""
+    """Risk prediction forms + post-result RAG/LlamaIndex Q&A using pipelines."""
     import streamlit as st
 
-    # ensure state keys exist
+    # ---- ensure state keys exist ----
     if "risk_chat_history" not in st.session_state:
         st.session_state.risk_chat_history = []
     if "last_risk_context" not in st.session_state:
@@ -1133,9 +1139,10 @@ def render_risk_page(vector_store):
 
     st.title("🩺 Risk Check")
 
+    # ---- load saved sklearn pipelines ----
     models = load_models()
-    have_heart = "heart" in models and models["heart"] is not None
-    have_diab  = "diabetes" in models and models["diabetes"] is not None
+    have_heart = bool(models.get("heart"))
+    have_diab  = bool(models.get("diabetes"))
 
     if not (have_heart or have_diab):
         st.error(
@@ -1146,7 +1153,9 @@ def render_risk_page(vector_store):
 
     tab_heart, tab_diab = st.tabs(["❤️ Heart Disease", "🧪 Diabetes"])
 
-    # ---------------- HEART ----------------
+    # =========================
+    #          HEART
+    # =========================
     with tab_heart:
         if not have_heart:
             st.info("Heart model not loaded.")
@@ -1155,41 +1164,32 @@ def render_risk_page(vector_store):
 
             c1, c2, c3 = st.columns(3)
             with c1:
-                age = st.number_input("Age", min_value=0, max_value=120, value=45, step=1)
-                chol = st.number_input("Cholesterol (mg/dL)", min_value=50, max_value=500, value=210, step=1)
+                age      = st.number_input("Age", min_value=0, max_value=120, value=55, step=1)
+                chol     = st.number_input("Cholesterol (mg/dL)", min_value=50, max_value=500, value=240, step=1)
                 trestbps = st.number_input("Resting BP (mm Hg)", min_value=60, max_value=260, value=130, step=1)
             with c2:
-                thalach = st.number_input("Max Heart Rate", min_value=40, max_value=240, value=150, step=1)
-                oldpeak = st.number_input("ST Depression (oldpeak)", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
-                exang = st.selectbox("Exercise-Induced Angina", ["No", "Yes"])
+                thalach  = st.number_input("Max Heart Rate", min_value=40, max_value=240, value=150, step=1)
+                oldpeak  = st.number_input("ST Depression (oldpeak)", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
+                exang    = st.selectbox("Exercise-Induced Angina", ["No", "Yes"])
             with c3:
-                sex = st.selectbox("Sex", ["Female", "Male"])
-                fbs = st.selectbox("Fasting Blood Sugar > 120 mg/dL", ["No", "Yes"])
-                cp = st.selectbox("Chest Pain Type", ["typical", "atypical", "non-anginal", "asymptomatic"])
+                sex  = st.selectbox("Sex", ["Female", "Male"])
+                fbs  = st.selectbox("Fasting Blood Sugar > 120 mg/dL", ["No", "Yes"])
+                cp   = st.selectbox("Chest Pain Type", ["typical", "atypical", "non-anginal", "asymptomatic"])
 
-            # NEW: add the 2 features your model expects
             col_a, col_b = st.columns(2)
             with col_a:
                 restecg = st.selectbox(
-                    "Resting ECG",
-                    ["normal", "ST-T wave abnormality", "left ventricular hypertrophy"]
+                    "Resting ECG", ["normal", "ST-T wave abnormality", "left ventricular hypertrophy"]
                 )
             with col_b:
-                slope = st.selectbox(
-                    "ST Segment Slope",
-                    ["upsloping", "flat", "downsloping"]
-                )
+                slope = st.selectbox("ST Segment Slope", ["upsloping", "flat", "downsloping"])
 
-            # encoders (must match your training)
+            # encoders (must match training)
             cp_map = {"typical": 0, "atypical": 1, "non-anginal": 2, "asymptomatic": 3}
-            restecg_map = {
-                "normal": 0,
-                "ST-T wave abnormality": 1,
-                "left ventricular hypertrophy": 2
-            }
+            restecg_map = {"normal": 0, "ST-T wave abnormality": 1, "left ventricular hypertrophy": 2}
             slope_map = {"upsloping": 0, "flat": 1, "downsloping": 2}
 
-            # build the 11-feature vector (UCI-like order)
+            # 11-feature vector (UCI-like)
             X_heart = [[
                 age,
                 1 if sex == "Male" else 0,
@@ -1206,27 +1206,8 @@ def render_risk_page(vector_store):
 
             if st.button("Predict Heart Risk", type="primary", key="predict_heart"):
                 try:
-                    model = models["heart"]  # sklearn pipeline
-
-                    # Optional sanity check: show expected feature count
-                    try:
-                        expected = None
-                        if hasattr(model, "n_features_in_"):
-                            expected = model.n_features_in_
-                        elif hasattr(model, "feature_names_in_"):
-                            expected = len(model.feature_names_in_)
-                        elif hasattr(model, "named_steps"):
-                            for step in model.named_steps.values():
-                                if hasattr(step, "n_features_in_"):
-                                    expected = step.n_features_in_
-                                    break
-                        if expected and len(X_heart[0]) != expected:
-                            st.error(f"Feature count mismatch: built {len(X_heart[0])}, model expects {expected}")
-                            return
-                    except Exception:
-                        pass
-
-                    risk_pct, yhat = predict_with_pipeline(model, X_heart)
+                    model = models["heart"]
+                    risk_pct, _ = predict_with_pipeline(model, X_heart)
                     risk_text = f"**Heart Disease Risk:** {format_percent(risk_pct)}"
                     st.success(risk_text)
 
@@ -1247,29 +1228,50 @@ def render_risk_page(vector_store):
                 except Exception as e:
                     st.error(f"Heart prediction failed: {e}")
 
+            # --- follow-up Q&A (RAG / LlamaIndex) ---
             if st.session_state.last_risk_context:
                 st.markdown("---")
                 st.subheader("💬 Ask follow-up about your result")
                 st.caption("Your risk summary will be used as context with CDC/WHO facts.")
+
                 q = st.text_input(
                     "Your question",
                     placeholder="e.g., What lifestyle changes can lower my risk?",
-                    key="heart_followup_q"
+                    key="heart_followup_q",
                 )
+
                 if st.button("Ask", key="ask_followup_heart") and q:
                     with st.spinner("Thinking..."):
                         answer, results = ask_followup_with_rag(
-                            vector_store, q, st.session_state.last_risk_context
+                            vector_store,
+                            q,
+                            st.session_state.last_risk_context,
+                            llamaindex_engine=st.session_state.get("llamaindex_engine"),
                         )
-                    if answer:
+
+                    if not answer:
+                        st.error("Sorry, I couldn't generate an answer. Please try rephrasing.")
+                    else:
                         st.session_state.risk_chat_history.append({"user": q, "assistant": answer})
                         st.markdown(answer)
-                        with st.expander("📚 Sources"):
-                            for i, r in enumerate(results[:3], 1):
-                                st.write(f"**{i}. {r['source']}** (relevance {r['relevance_score']})")
-                                st.write(r["text"][:300] + "…")
 
-    # ---------------- DIABETES ----------------
+                        # Engine badge
+                        if st.session_state.get("use_llamaindex") and st.session_state.get("llamaindex_engine"):
+                            st.caption("🦙 Answered with LlamaIndex")
+                        else:
+                            st.caption("⚡ Answered with FAISS + OpenAI")
+
+                        # Only show sources when FAISS was used (results is non-empty)
+                        if results:
+                            with st.expander("📚 Sources"):
+                                for i, r in enumerate(results[:3], 1):
+                                    st.write(f"**{i}. {r.get('source', 'Unknown')}** (relevance {r.get('relevance_score')})")
+                                    snippet = (r.get("text") or "")
+                                    st.write(snippet[:300] + ("…" if len(snippet) > 300 else ""))
+
+    # =========================
+    #         DIABETES
+    # =========================
     with tab_diab:
         if not have_diab:
             st.info("Diabetes model not loaded.")
@@ -1278,31 +1280,30 @@ def render_risk_page(vector_store):
 
             c1, c2, c3 = st.columns(3)
             with c1:
-                preg = st.number_input("Pregnancies", min_value=0, max_value=20, value=1, step=1)
+                preg    = st.number_input("Pregnancies", min_value=0, max_value=20, value=2, step=1)
                 glucose = st.number_input("Glucose", min_value=0, max_value=300, value=120, step=1)
-                bp = st.number_input("Blood Pressure", min_value=0, max_value=220, value=70, step=1)
+                bp      = st.number_input("Blood Pressure", min_value=0, max_value=220, value=72, step=1)
             with c2:
-                skin = st.number_input("Skin Thickness", min_value=0, max_value=100, value=20, step=1)
-                insulin = st.number_input("Insulin", min_value=0, max_value=900, value=80, step=1)
-                bmi = st.number_input("BMI", min_value=10.0, max_value=70.0, value=27.5, step=0.1)
+                skin    = st.number_input("Skin Thickness", min_value=0, max_value=100, value=23, step=1)
+                insulin = st.number_input("Insulin", min_value=0, max_value=900, value=94, step=1)
+                bmi     = st.number_input("BMI", min_value=10.0, max_value=70.0, value=28.0, step=0.1)
             with c3:
-                dpf = st.number_input("Diabetes Pedigree Fn", min_value=0.0, max_value=3.0, value=0.5, step=0.01)
+                dpf  = st.number_input("Diabetes Pedigree Fn", min_value=0.0, max_value=3.0, value=0.45, step=0.01)
                 age2 = st.number_input("Age", min_value=0, max_value=120, value=35, step=1)
 
             X_diab = [[preg, glucose, bp, skin, insulin, bmi, dpf, age2]]
 
             if st.button("Predict Diabetes Risk", type="primary", key="predict_diab"):
                 try:
-                    model = models["diabetes"]  # sklearn pipeline
-                    risk_pct, yhat = predict_with_pipeline(model, X_diab)
-
+                    model = models["diabetes"]
+                    risk_pct, _ = predict_with_pipeline(model, X_diab)
                     risk_text = f"**Diabetes Risk:** {format_percent(risk_pct)}"
                     st.success(risk_text)
 
                     explain = [
                         f"- Glucose: {glucose}, BP: {bp}, BMI: {bmi}",
                         f"- Insulin: {insulin}, Skin thickness: {skin}",
-                        f"- DPF: {dpf}, Pregnancies: {preg}, Age: {age2}"
+                        f"- DPF: {dpf}, Pregnancies: {preg}, Age: {age2}",
                     ]
                     summary = (
                         "Diabetes risk result:\n" + risk_text +
@@ -1314,27 +1315,48 @@ def render_risk_page(vector_store):
                 except Exception as e:
                     st.error(f"Diabetes prediction failed: {e}")
 
+            # --- follow-up Q&A (RAG / LlamaIndex) ---
             if st.session_state.last_risk_context:
                 st.markdown("---")
                 st.subheader("💬 Ask follow-up about your result")
                 st.caption("Your risk summary will be used as context with CDC/WHO facts.")
+
                 q = st.text_input(
                     "Your question",
                     placeholder="e.g., What tests should I discuss with my doctor?",
-                    key="diab_followup_q"
+                    key="diab_followup_q",
                 )
+
                 if st.button("Ask", key="ask_followup_diab") and q:
                     with st.spinner("Thinking..."):
                         answer, results = ask_followup_with_rag(
-                            vector_store, q, st.session_state.last_risk_context
+                            vector_store,
+                            q,
+                            st.session_state.last_risk_context,
+                            llamaindex_engine=st.session_state.get("llamaindex_engine"),
                         )
-                    if answer:
+
+                    if not answer:
+                        st.error("Sorry, I couldn't generate an answer. Please try rephrasing.")
+                    else:
                         st.session_state.risk_chat_history.append({"user": q, "assistant": answer})
                         st.markdown(answer)
-                        with st.expander("📚 Sources"):
-                            for i, r in enumerate(results[:3], 1):
-                                st.write(f"**{i}. {r['source']}** (relevance {r['relevance_score']})")
-                                st.write(r["text"][:300] + "…")
+
+                        # Engine badge
+                        if st.session_state.get("use_llamaindex") and st.session_state.get("llamaindex_engine"):
+                            st.caption("🦙 Answered with LlamaIndex")
+                        else:
+                            st.caption("⚡ Answered with FAISS + OpenAI")
+
+                        # Sources only for FAISS path
+                        if results:
+                            with st.expander("📚 Sources"):
+                                for i, r in enumerate(results[:3], 1):
+                                    st.write(f"**{i}. {r.get('source', 'Unknown')}** (relevance {r.get('relevance_score')})")
+                                    snippet = (r.get("text") or "")
+                                    st.write(snippet[:300] + ("…" if len(snippet) > 300 else ""))
+
+
 
 
 def render_browse_page(vector_store):
