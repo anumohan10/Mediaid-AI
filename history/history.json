@@ -34,6 +34,27 @@
       "response": "Mucoepidermoid carcinoma in situ is a type of cancer that starts in the salivary glands. It's a non-invasive form of the cancer, meaning it hasn't spread beyond the original site. Treatment options may include surgery, radiation therapy, or a combination of both.\n\nIf you or someone you know has been diagnosed with mucoepidermoid carcinoma in situ, it's important to consult with healthcare professionals for personalized treatment options and guidance. Your healthcare team can provide the best cou...",
       "search_type": "ai_search",
       "full_response_length": 621
+    },
+    {
+      "timestamp": "2025-08-14T16:17:48.948875",
+      "query": "what does this medical report means?",
+      "response": "Based on the medical document you uploaded, it seems to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, with no apparent brain metastases ...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1341
+    },
+    {
+      "timestamp": "2025-08-14T16:18:16.905272",
+      "query": "what does this medical report means?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, indicating no apparent brain met...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1366
+    },
+    {
+      "timestamp": "2025-08-14T16:20:15.275451",
+      "query": "explain medical report?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a procedure involving the administration of MF2-fluoro-2-deoxy-D-glucose (8E-EDG) for a whole-body PET-CT scan. The scan was done from the vertex to the mid-thigh, with oral contrast used for bowel opacification. The blood glucose level at the time of the FDG injection was 110 mg/dl.\n\nIn the observations section, it mentions normal physiological tracer distribution in the brain parenchyma, indicating no apparent brain met...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1366
     }
   ],
   "admin": [
