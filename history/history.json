@@ -6,6 +6,34 @@
       "response": "Mucoepidermoid carcinoma is a type of cancer that can occur in various glands in the body, most commonly in the salivary glands. It is a rare form of cancer that can develop in the mucous-producing cells and the squamous cells in these glands.\n\nIf you or someone you know is concerned about mucoepidermoid carcinoma, it's important to consult with a healthcare professional for a proper diagnosis and treatment plan. They can provide personalized guidance and support based on individual circumstance...",
       "search_type": "ai_search",
       "full_response_length": 695
+    },
+    {
+      "timestamp": "2025-08-14T15:59:19.684067",
+      "query": "medical reports?",
+      "response": "It looks like you uploaded a medical document with a prescription for Frances Spence. The prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once a day for 10 days. The notes mention either taking the medication with food or monitoring blood pressure.\n\nRegarding the medications:\n1. Atorvastatin is commonly used to lower cholesterol levels.\n2. Metoprolol is a beta-blocker often used to treat high blood pressure and certain heart condit...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1034
+    },
+    {
+      "timestamp": "2025-08-14T15:59:48.810248",
+      "query": "medical reports?",
+      "response": "It looks like you uploaded a medical document for Frances Spence with a prescription from Dr. Gwendolyn Campbell. The prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once a day for 10 days. The notes mention either taking the medication with food or monitoring blood pressure.\n\nTo break it down:\n1. Atorvastatin helps lower cholesterol levels.\n2. Metoprolol is used for high blood pressure and certain heart conditions.\n3. Levothyroxin...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 971
+    },
+    {
+      "timestamp": "2025-08-14T16:00:30.469582",
+      "query": "what medications can we take?",
+      "response": "It looks like Frances Spence's prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once a day for 10 days. \n\nTo break it down:\n1. Atorvastatin helps lower cholesterol levels.\n2. Metoprolol is used for high blood pressure and certain heart conditions.\n3. Levothyroxine is a thyroid hormone replacement for hypothyroidism.\n\nBased on the prescription, Frances can take these medications as directed by Dr. Gwendolyn Campbell. Remember to foll...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 804
+    },
+    {
+      "timestamp": "2025-08-14T16:02:09.345688",
+      "query": "what is mucoepidermoid carcinoma in situ?",
+      "response": "Mucoepidermoid carcinoma in situ is a type of cancer that starts in the salivary glands. It's a non-invasive form of the cancer, meaning it hasn't spread beyond the original site. Treatment options may include surgery, radiation therapy, or a combination of both.\n\nIf you or someone you know has been diagnosed with mucoepidermoid carcinoma in situ, it's important to consult with healthcare professionals for personalized treatment options and guidance. Your healthcare team can provide the best cou...",
+      "search_type": "ai_search",
+      "full_response_length": 621
     }
   ],
   "admin": [

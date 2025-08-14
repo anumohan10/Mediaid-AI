@@ -8,13 +8,31 @@ import streamlit as st
 import os
 import sys
 import re
+import json
+import traceback
+from datetime import datetime
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from pathlib import Path
+from llama_index.core import Settings, VectorStoreIndex, Document
+from llama_index.llms.openai import OpenAI as LIOpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
+import os
 
-# Load environment variables
-load_dotenv()
+# Load .env next to this file (reliable)
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+
+print("API Key Loaded?", bool(os.getenv("OPENAI_API_KEY")))
+
+Settings.llm = LIOpenAI(model="gpt-3.5-turbo", temperature=0.1, api_key=os.getenv("OPENAI_API_KEY"))
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=os.getenv("OPENAI_API_KEY"))
+
+docs = [Document(text="Diabetes mellitus is a metabolic disease with high blood glucose."),
+        Document(text="Hypertension is high blood pressure; lifestyle and medication help.")]
+
+idx = VectorStoreIndex.from_documents(docs)
+qe = idx.as_query_engine(similarity_top_k=2, response_mode="tree_summarize")
+print(qe.query("What is diabetes?"))  # should print a coherent answer
 
 # Add utils to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
@@ -38,6 +56,10 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'chat_context' not in st.session_state:
     st.session_state.chat_context = []
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
 
 @st.cache_resource
 def load_medical_search():
@@ -52,6 +74,60 @@ def load_medical_search():
     except Exception as e:
         st.error(f"Failed to load medical database: {e}")
         return None
+
+@st.cache_resource
+def load_llamaindex_search():
+    """Load LlamaIndex search system (simple implementation)"""
+    try:
+        import os, json
+        from llama_index.core import VectorStoreIndex, Document, Settings
+        # Configure LlamaIndex with OpenAI (v0.10+ requires this)
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key or api_key == "your-api-key-here":
+            st.warning("⚠️ LlamaIndex requires OPENAI_API_KEY. Skipping.")
+            return None
+
+        # Set default LLM + embeddings
+        from llama_index.llms.openai import OpenAI as LIOpenAI
+        from llama_index.embeddings.openai import OpenAIEmbedding
+        Settings.llm = LIOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+        Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
+
+        # Build documents (keep your simple loader)
+        documents = []
+        who_path = "rag_data/embedded/who_embeddings.json"
+        if os.path.exists(who_path):
+            with open(who_path, "r", encoding="utf-8") as f:
+                for item in json.load(f)[:100]:
+                    documents.append(Document(text=item.get("text",""),
+                                              metadata={"source":"WHO", **item.get("metadata",{})}))
+        cdc_path = "rag_data/embedded/cdc_embeddings.json"
+        if os.path.exists(cdc_path):
+            with open(cdc_path, "r", encoding="utf-8") as f:
+                for item in json.load(f)[:100]:
+                    documents.append(Document(text=item.get("text",""),
+                                              metadata={"source":"CDC", **item.get("metadata",{})}))
+
+        if not documents:
+            st.warning("No medical documents found for LlamaIndex")
+            return None
+
+        index = VectorStoreIndex.from_documents(documents)
+        query_engine = index.as_query_engine(
+            similarity_top_k=5,
+            response_mode="tree_summarize",
+            verbose=False,
+        )
+        st.success(f"✅ LlamaIndex loaded {len(documents)} medical documents")
+        return query_engine
+
+    except ImportError:
+        st.warning("⚠️ LlamaIndex not installed. Run: pip install llama-index")
+        return None
+    except Exception as e:
+        st.error(f"Failed to load LlamaIndex: {e}")
+        return None
+
 
 @st.cache_data
 def get_medical_topics(_vector_store):
@@ -68,6 +144,41 @@ def get_medical_topics(_vector_store):
                 topics.add(topic)
     
     return sorted(list(topics))
+
+def search_documents_llamaindex(llamaindex_engine, query: str) -> str:
+    """Search using LlamaIndex query engine with enhanced prompting"""
+    if not llamaindex_engine:
+        return None
+    
+    try:
+        # Enhanced query with detailed prompting for comprehensive medical responses
+        enhanced_query = f"""
+        Based on the medical information available, please provide a comprehensive answer about: "{query}"
+
+        Please structure your response as follows:
+        1. **Overview**: What is this condition/topic?
+        2. **Key Facts**: Important characteristics, symptoms, or features
+        3. **Prevention/Treatment**: Available prevention methods or treatments (if applicable)
+        4. **When to Seek Help**: When to consult healthcare professionals
+        5. **Additional Notes**: Any other important information
+
+        Use bullet points where appropriate and ensure the response is medically accurate.
+        Always emphasize consulting healthcare professionals for specific medical advice.
+        
+        Question: {query}
+        """
+        
+        # Query using LlamaIndex query engine with enhanced prompt
+        response = llamaindex_engine.query(enhanced_query)
+        
+        # Add medical disclaimer to LlamaIndex responses
+        enhanced_response = f"{str(response)}\n\n⚠️ **Important:** Always consult healthcare professionals for specific medical advice."
+        
+        return enhanced_response
+        
+    except Exception as e:
+        st.error(f"LlamaIndex search error: {e}")
+        return None
 
 def search_documents(vector_store, query: str, max_results: int = 10) -> List[Dict]:
     """Search for medical documents"""
@@ -207,6 +318,269 @@ def get_keyword_summary(query: str, results: List[Dict]) -> str:
     
     return summary
 
+def is_medical_query(query: str) -> bool:
+    """Check if the query is medical-related and appropriate for MediAid AI"""
+    query_lower = query.lower()
+    
+    # Medical keywords that indicate legitimate medical queries
+    medical_keywords = [
+        # Medical conditions
+        'symptom', 'symptoms', 'disease', 'condition', 'syndrome', 'disorder', 'infection',
+        'diabetes', 'hypertension', 'cancer', 'heart', 'kidney', 'liver', 'lung', 'brain',
+        'asthma', 'allergy', 'allergies', 'pneumonia', 'flu', 'fever', 'cough', 'pain',
+        'headache', 'migraine', 'depression', 'anxiety', 'stroke', 'blood pressure',
+        
+        # Medical terms
+        'treatment', 'therapy', 'medication', 'medicine', 'drug', 'prescription',
+        'surgery', 'operation', 'procedure', 'diagnosis', 'test', 'screening',
+        'vaccine', 'vaccination', 'immunization', 'prevention', 'cure',
+        
+        # Body parts and systems
+        'chest', 'abdomen', 'stomach', 'throat', 'eye', 'ear', 'nose', 'mouth',
+        'skin', 'bone', 'muscle', 'joint', 'blood', 'urine', 'bowel', 'bladder',
+        
+        # Medical professionals and settings
+        'doctor', 'physician', 'nurse', 'hospital', 'clinic', 'emergency',
+        'medical', 'health', 'healthcare', 'patient', 'diagnosis', 'prognosis',
+        
+        # Pregnancy and child health
+        'pregnant', 'pregnancy', 'baby', 'infant', 'child', 'pediatric',
+        'maternal', 'fetal', 'prenatal', 'postnatal',
+        
+        # Common medical questions
+        'what is', 'how to treat', 'side effects', 'safe during', 'contraindication',
+        'interaction', 'dosage', 'dose', 'risk', 'complication'
+    ]
+    
+    # Non-medical topics that should be blocked
+    non_medical_keywords = [
+        # Technology
+        'computer', 'software', 'programming', 'code', 'coding', 'website', 'app',
+        'internet', 'wifi', 'smartphone', 'iphone', 'android', 'windows', 'mac',
+        
+        # Entertainment
+        'movie', 'film', 'tv show', 'music', 'song', 'game', 'gaming', 'sport',
+        'football', 'basketball', 'soccer', 'celebrity', 'actor', 'actress',
+        
+        # Business/Finance
+        'business', 'investment', 'stock', 'money', 'bank', 'loan', 'credit',
+        'insurance', 'tax', 'salary', 'job', 'career', 'resume',
+        
+        # Education (non-medical)
+        'homework', 'essay', 'assignment', 'math', 'physics', 'chemistry', 'history',
+        'geography', 'literature', 'university', 'college', 'degree',
+        
+        # Politics/Social
+        'politics', 'government', 'election', 'president', 'vote', 'law', 'legal',
+        'court', 'judge', 'lawyer', 'attorney',
+        
+        # Travel/Food (non-medical)
+        'vacation', 'travel', 'hotel', 'restaurant', 'recipe', 'cooking', 'food',
+        'cuisine', 'drink', 'alcohol', 'wine', 'beer',
+        
+        # Personal/Relationships
+        'relationship', 'dating', 'love', 'marriage', 'divorce', 'family',
+        'friend', 'friendship', 'social media', 'facebook', 'twitter', 'instagram'
+    ]
+    
+    # Check for obvious non-medical content
+    non_medical_count = sum(1 for keyword in non_medical_keywords if keyword in query_lower)
+    medical_count = sum(1 for keyword in medical_keywords if keyword in query_lower)
+    
+    # If query contains significantly more non-medical terms, likely not medical
+    if non_medical_count > medical_count and non_medical_count >= 2:
+        return False
+    
+    # Check for explicit non-medical patterns
+    non_medical_patterns = [
+        'how to make', 'recipe for', 'best restaurant', 'movie recommendation',
+        'song lyrics', 'game walkthrough', 'investment advice', 'stock price',
+        'political opinion', 'latest news', 'weather forecast', 'sports score',
+        'programming tutorial', 'code example', 'homework help', 'essay writing'
+    ]
+    
+    if any(pattern in query_lower for pattern in non_medical_patterns):
+        return False
+    
+    # If query contains medical keywords or medical question patterns, allow it
+    medical_question_patterns = [
+        'what is', 'what are', 'how to treat', 'how to prevent', 'symptoms of',
+        'causes of', 'treatment for', 'medication for', 'safe during', 'side effects'
+    ]
+    
+    has_medical_pattern = any(pattern in query_lower for pattern in medical_question_patterns)
+    has_medical_keyword = medical_count > 0
+    
+    # Allow if it has medical context or seems like a health question
+    if has_medical_keyword or has_medical_pattern:
+        return True
+    
+    # For very short queries, be more lenient (might be medical abbreviations)
+    if len(query.split()) <= 3:
+        # But block obvious non-medical short phrases
+        obvious_non_medical = ['pizza', 'movie', 'game', 'music', 'weather', 'news', 'politics', 'programming', 'tutorial']
+        if any(term in query_lower for term in obvious_non_medical):
+            return False
+        return True
+    
+    # Default: if we can't clearly identify it as medical, be cautious
+    return False
+
+def is_complex_query(query: str) -> bool:
+    """Determine if a query requires task decomposition"""
+    complexity_indicators = [
+        'multiple conditions', 'and', 'with', 'also have', 'plus', 'additionally',
+        'interactions', 'safe during', 'pregnant', 'elderly', 'child',
+        'taking medication', 'side effects', 'contraindications'
+    ]
+    
+    query_lower = query.lower()
+    # Count conditions mentioned
+    medical_conditions = ['diabetes', 'hypertension', 'heart', 'kidney', 'liver', 'pregnancy', 'cancer', 'asthma']
+    condition_count = len([word for word in medical_conditions if word in query_lower])
+    
+    # Check for complexity indicators
+    has_complexity_words = any(indicator in query_lower for indicator in complexity_indicators)
+    
+    # Consider complex if multiple conditions OR complexity indicators present
+    return condition_count > 1 or has_complexity_words or len(query.split()) > 15
+
+def decompose_medical_query(query: str, client) -> Optional[Dict]:
+    """Break down complex medical queries into sub-tasks"""
+    try:
+        decomposition_prompt = f"""
+        Analyze this medical query and break it down into logical sub-tasks: "{query}"
+        
+        Return a JSON structure with:
+        {{
+            "main_topic": "Brief description of the main question",
+            "conditions": ["condition1", "condition2"],
+            "sub_questions": ["specific question 1", "specific question 2"],
+            "safety_considerations": ["safety aspect 1", "safety aspect 2"],
+            "complexity_level": "low/medium/high"
+        }}
+        
+        Only return valid JSON, no other text.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": decomposition_prompt}],
+            max_tokens=400,
+            temperature=0.1
+        )
+        
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        st.error(f"Query decomposition failed: {e}")
+        return None
+
+def execute_complex_search(decomposition: Dict, vector_store) -> Dict:
+    """Execute searches for each sub-task of a complex query"""
+    results = {
+        "condition_searches": {},
+        "safety_searches": {},
+        "question_searches": {}
+    }
+    
+    # Search for each condition
+    for condition in decomposition.get("conditions", []):
+        if condition.strip():
+            condition_results = search_documents(vector_store, f"{condition} symptoms treatment management", max_results=3)
+            results["condition_searches"][condition] = condition_results
+    
+    # Search for safety considerations
+    for safety in decomposition.get("safety_considerations", []):
+        if safety.strip():
+            safety_results = search_documents(vector_store, safety, max_results=2)
+            results["safety_searches"][safety] = safety_results
+    
+    # Search for specific sub-questions
+    for question in decomposition.get("sub_questions", []):
+        if question.strip():
+            question_results = search_documents(vector_store, question, max_results=3)
+            results["question_searches"][question] = question_results
+    
+    return results
+
+def synthesize_complex_response(user_message: str, decomposition: Dict, complex_results: Dict, chat_history: List[Dict], client) -> str:
+    """Synthesize comprehensive response from multiple search results"""
+    try:
+        # Format all search results
+        formatted_results = "RESEARCH FINDINGS:\n\n"
+        
+        # Add condition information
+        if complex_results["condition_searches"]:
+            formatted_results += "CONDITIONS RESEARCHED:\n"
+            for condition, results in complex_results["condition_searches"].items():
+                formatted_results += f"\n{condition.upper()}:\n"
+                for i, result in enumerate(results[:2], 1):
+                    formatted_results += f"{i}. {result['text'][:200]}...\n"
+        
+        # Add safety information
+        if complex_results["safety_searches"]:
+            formatted_results += "\nSAFETY CONSIDERATIONS:\n"
+            for safety, results in complex_results["safety_searches"].items():
+                formatted_results += f"\n{safety}:\n"
+                for i, result in enumerate(results[:1], 1):
+                    formatted_results += f"{i}. {result['text'][:200]}...\n"
+        
+        # Add specific question answers
+        if complex_results["question_searches"]:
+            formatted_results += "\nSPECIFIC QUESTIONS:\n"
+            for question, results in complex_results["question_searches"].items():
+                formatted_results += f"\nQ: {question}\n"
+                if results:
+                    formatted_results += f"A: {results[0]['text'][:200]}...\n"
+        
+        # Build conversation context
+        conversation_context = ""
+        if chat_history:
+            recent_messages = chat_history[-3:]  # Last 3 exchanges
+            for msg in recent_messages:
+                conversation_context += f"User: {msg['user']}\nAssistant: {msg['assistant'][:100]}...\n\n"
+        
+        synthesis_prompt = f"""
+        You are MediAid AI providing comprehensive medical information analysis.
+        
+        ORIGINAL COMPLEX QUERY: "{user_message}"
+        
+        CONVERSATION HISTORY:
+        {conversation_context}
+        
+        DECOMPOSED RESEARCH:
+        Main Topic: {decomposition.get('main_topic', 'N/A')}
+        Conditions: {', '.join(decomposition.get('conditions', []))}
+        Complexity: {decomposition.get('complexity_level', 'medium')}
+        
+        {formatted_results}
+        
+        Provide a comprehensive, structured response that:
+        
+        1. **OVERVIEW**: Summarize the main medical question
+        2. **CONDITION ANALYSIS**: Address each condition mentioned with key facts
+        3. **SAFETY CONSIDERATIONS**: Highlight important safety information, interactions, contraindications
+        4. **SPECIFIC RECOMMENDATIONS**: Answer each sub-question clearly
+        5. **ACTION PLAN**: Provide clear next steps
+        6. **MEDICAL DISCLAIMER**: Emphasize professional consultation
+        
+        Format with clear headings, bullet points, and easy-to-understand language.
+        Be thorough but concise. Focus on evidence-based information.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": synthesis_prompt}],
+            max_tokens=1000,
+            temperature=0.2
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        st.error(f"Response synthesis failed: {e}")
+        return "I apologize, but I encountered an error while analyzing your complex query. Please try rephrasing your question or ask about specific conditions separately."
+
 def get_conversational_response(user_message: str, chat_history: List[Dict], results: List[Dict], document_context: str = "") -> str:
     """Generate conversational response with context from chat history and search results"""
     try:
@@ -294,18 +668,23 @@ def render_navigation():
         st.session_state.selected_disease = None
         st.rerun()
     
-    if st.sidebar.button("� Upload & Ask", use_container_width=True, key="nav_upload"):
+    if st.sidebar.button("📤 Upload & Ask", use_container_width=True, key="nav_upload"):
         st.session_state.current_page = 'upload'
         st.session_state.selected_disease = None
         st.rerun()
     
-    if st.sidebar.button("�📋 Browse Topics", use_container_width=True, key="nav_browse"):
+    if st.sidebar.button("📋 Browse Topics", use_container_width=True, key="nav_browse"):
         st.session_state.current_page = 'browse'
         st.session_state.selected_disease = None
         st.rerun()
+
+    if st.sidebar.button("❓FAQs", use_container_width=True, key="nav_faqs"):
+        st.session_state.current_page = 'faqs'
+        st.session_state.selected_disease = None
+        st.rerun()
     
-    if st.sidebar.button("💡 Examples", use_container_width=True, key="nav_examples"):
-        st.session_state.current_page = 'examples'
+    if st.sidebar.button("📜 Search History", use_container_width=True, key="nav_history"):
+        st.session_state.current_page = 'history'
         st.session_state.selected_disease = None
         st.rerun()
     
@@ -327,37 +706,84 @@ def render_navigation():
     load_dotenv()
     api_key = os.getenv('OPENAI_API_KEY')
     
+    # Show LlamaIndex status
+    if 'llamaindex_engine' in st.session_state and st.session_state.llamaindex_engine:
+        st.sidebar.success("🦙 LlamaIndex: Ready")
+        use_llamaindex = st.sidebar.checkbox("Use LlamaIndex for search", value=False, key="use_llamaindex")
+        compare_engines = st.sidebar.checkbox("Compare both search engines", value=False, key="compare_engines")
+    else:
+        st.sidebar.warning("🦙 LlamaIndex: Not Available")
+        use_llamaindex = False
+        compare_engines = False
+    
     # Removed debug information for production
     
     if api_key and api_key != 'your-api-key-here' and len(api_key) > 20:
         st.sidebar.success("🤖 AI Summaries: Enabled")
         use_ai = st.sidebar.checkbox("Use AI-powered summaries", value=True, key="ai_summaries_diabetes")
         
+        # Task Decomposition Feature
+        st.sidebar.success("🧠 Task Decomposition: Enabled")
+        st.sidebar.info("Complex queries will be automatically analyzed and broken down into sub-tasks")
+        
+        # Content Guardrails
+        st.sidebar.success("🔒 Content Guardrails: Active")
+        st.sidebar.info("Non-medical queries are automatically blocked")
+        
         # Removed test button for production
     else:
         st.sidebar.warning("🤖 AI Summaries: Disabled (API key not configured)")
+        st.sidebar.warning("🧠 Task Decomposition: Disabled (requires OpenAI API)")
+        st.sidebar.success("🔒 Content Guardrails: Active")
         use_ai = False
+    
+    # Logout button at the bottom
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"👤 **Logged in as:** {st.session_state.username}")
+    
+    # Policy reminder
+    st.sidebar.markdown("---")
+    st.sidebar.info("🔒 **Policy**: MediAid AI is designed exclusively for medical and health-related questions. Non-medical queries will be blocked.")
+    
+    if st.sidebar.button("🚪 Logout", use_container_width=True, key="nav_logout"):
+        st.session_state.authenticated = False
+        st.session_state.username = ""
+        st.session_state.current_page = 'home'
+        st.rerun()
 
 def render_home_page(vector_store):
     """Render the home page"""
     st.title("🏥 MediAid AI - Medical Information Search")
     st.markdown("**Your comprehensive medical information assistant powered by CDC and WHO databases**")
     
-    if vector_store:
-        st.success(f"✅ Loaded {vector_store.index.ntotal} medical documents")
+    # Show system status
+    col1, col2 = st.columns(2)
     
-    # Quick stats
-    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Documents", "5,489")
-    with col2:
-        st.metric("Medical Topics", "1,068+")
-    with col3:
-        st.metric("Data Sources", "CDC + WHO")
-    with col4:
-        st.metric("Search Types", "3 Modes")
+        if vector_store:
+            st.success(f"✅ FAISS: Loaded {vector_store.index.ntotal} medical documents")
+        else:
+            st.error("❌ FAISS: Not loaded")
     
-    st.markdown("---")
+    with col2:
+        llamaindex_query_engine = st.session_state.get('llamaindex_engine', None)
+        if llamaindex_query_engine:
+            st.success("✅ LlamaIndex: Ready for intelligent search")
+        else:
+            st.warning("⚠️ LlamaIndex: Not available (requires OpenAI API)")
+    
+    # # Quick stats
+    # col1, col2, col3, col4 = st.columns(4)
+    # with col1:
+    #     st.metric("Total Documents", "5,489")
+    # with col2:
+    #     st.metric("Medical Topics", "1,068+")
+    # with col3:
+    #     st.metric("Data Sources", "CDC + WHO")
+    # with col4:
+    #     st.metric("Search Types", "FAISS + LlamaIndex")
+    
+    # st.markdown("---")
     
     # Features overview
     st.subheader("🌟 Features")
@@ -367,9 +793,9 @@ def render_home_page(vector_store):
     with col1:
         st.markdown("""
         ### 🔍 Smart Search
-        - Keyword-based medical search
+        - **FAISS**: Fast keyword-based search
+        - **🦙 LlamaIndex**: Intelligent semantic search
         - AI-powered summaries
-        - Relevance scoring
         - Source attribution
         
         ### 📋 Browse Topics
@@ -381,18 +807,82 @@ def render_home_page(vector_store):
     
     with col2:
         st.markdown("""
-        ### 💡 Quick Examples
-        - Pre-built searches
-        - Common medical questions
-        - Instant results
-        - Educational content
+        ### � Safety & Compliance
+        - **Content Guardrails**: Medical-only queries enforced
+        - **Policy Protection**: Non-medical content blocked
+        - **User Authentication**: Secure access control
+        - **Search History**: Personal activity tracking
         
         ### 🎯 Key Benefits
         - Evidence-based information
-        - User-friendly interface
+        - Multiple search engines
         - Mobile responsive
         - Always up-to-date
         """)
+    
+    # # Search engine comparison
+    # if llamaindex_query_engine:
+    #     st.markdown("---")
+    #     st.subheader("🔍 Search Engine Comparison")
+        
+    #     comparison_col1, comparison_col2 = st.columns(2)
+        
+    #     with comparison_col1:
+    #         st.markdown("""
+    #         **🏃‍♂️ FAISS Search:**
+    #         - ⚡ Ultra-fast keyword matching
+    #         - 📊 Relevance scoring
+    #         - 🎯 Exact term matching
+    #         - 💾 Low memory usage
+    #         """)
+        
+    #     with comparison_col2:
+    #         st.markdown("""
+    #         **🦙 LlamaIndex Search:**
+    #         - 🧠 Understands context and meaning
+    #         - 💬 Natural language queries
+    #         - 📖 Comprehensive responses
+    #         - 🤖 AI-powered insights
+    #         """)
+    
+    # Task Decomposition Feature Demo
+    st.markdown("---")
+    st.subheader("🧠 Advanced Task Decomposition")
+    st.markdown("**New Agentic AI Feature:** Automatically breaks down complex medical queries into manageable sub-tasks")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **🔍 What It Does:**
+        - Analyzes complex multi-condition queries
+        - Breaks them into specific research tasks
+        - Searches each aspect systematically
+        - Synthesizes comprehensive responses
+        """)
+        
+        st.markdown("""
+        **🎯 Perfect For:**
+        - Multiple medical conditions
+        - Drug interactions & safety
+        - Pregnancy-related questions
+        - Elderly care considerations
+        """)
+    
+    with col2:
+        st.markdown("""
+        **💡 Example Complex Queries:**
+        - *"I have diabetes and high blood pressure, am pregnant, what medications are safe?"*
+        - *"Elderly patient with heart disease and kidney problems - drug interactions?"*
+        - *"Child with asthma and allergies - vaccine safety considerations?"*
+        """)
+        
+        # Demo button
+        if st.button("🚀 Try Complex Query Demo", key="complex_demo"):
+            demo_query = "I have diabetes and high blood pressure and I'm pregnant. What medications are safe?"
+            st.session_state.search_query = demo_query
+            st.session_state.current_page = 'search'
+            st.rerun()
     
     # Quick search
     st.markdown("---")
@@ -405,9 +895,14 @@ def render_home_page(vector_store):
     )
     
     if quick_query:
-        st.session_state.search_query = quick_query
-        st.session_state.current_page = 'search'
-        st.rerun()
+        # GUARDRAIL: Check if the query is medical-related
+        if not is_medical_query(quick_query):
+            st.error("🚫 **Policy Violation**: This is a violation of our application policy. MediAid AI is designed exclusively for medical and health-related questions.")
+            st.warning("**Please ask questions about medical conditions, symptoms, treatments, or health concerns.**")
+        else:
+            st.session_state.search_query = quick_query
+            st.session_state.current_page = 'search'
+            st.rerun()
 
 def render_search_page(vector_store):
     """Render the chat-based search page"""
@@ -458,9 +953,167 @@ def render_search_page(vector_store):
                 user_message = None
     
     if user_message:
-        # Search for relevant documents
-        with st.spinner("Searching medical database and generating response..."):
-            results = search_documents(vector_store, user_message, max_results=8)
+        # GUARDRAIL: Check if the query is medical-related
+        if not is_medical_query(user_message):
+            st.error("🚫 **Policy Violation**: This is a violation of our application policy. MediAid AI is designed exclusively for medical and health-related questions. Please ask questions about medical conditions, symptoms, treatments, medications, or health concerns.")
+            st.warning("**Examples of appropriate questions:**\n- What are the symptoms of diabetes?\n- How to treat high blood pressure?\n- Side effects of aspirin\n- Safe medications during pregnancy")
+            return
+        
+        # Check if user wants to use LlamaIndex or compare both
+        use_llamaindex = st.session_state.get('use_llamaindex', False)
+        compare_engines = st.session_state.get('compare_engines', False)
+        llamaindex_engine = st.session_state.get('llamaindex_engine', None)
+        
+        if compare_engines and llamaindex_engine:
+            # Show both responses side by side
+            st.subheader("🔍 Comparing Search Engines")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 🦙 LlamaIndex Response")
+                with st.spinner("🦙 Searching with LlamaIndex..."):
+                    llamaindex_response = search_documents_llamaindex(llamaindex_engine, user_message)
+                
+                if llamaindex_response:
+                    st.info("🦙 LlamaIndex Results")
+                    st.markdown(llamaindex_response)
+                else:
+                    st.error("❌ LlamaIndex search failed")
+            
+            with col2:
+                st.markdown("### ⚡ FAISS + AI Response")
+                with st.spinner("⚡ Searching with FAISS..."):
+                    results = search_documents(vector_store, user_message, max_results=8)
+                
+                if results and use_ai:
+                    ai_response = get_conversational_response(user_message, st.session_state.chat_history, results)
+                    if ai_response:
+                        st.info("⚡ FAISS + OpenAI Results")
+                        st.markdown(ai_response)
+                    else:
+                        st.error("❌ AI response failed")
+                elif results:
+                    summary = get_keyword_summary(user_message, results)
+                    st.info("⚡ FAISS Keyword Results")
+                    st.markdown(summary)
+                else:
+                    st.error("❌ No results found")
+            
+            # Don't add to chat history for comparisons
+            return
+        
+        elif use_llamaindex and llamaindex_engine:
+            # Use LlamaIndex for search
+            with st.spinner("🦙 Searching with LlamaIndex..."):
+                llamaindex_response = search_documents_llamaindex(llamaindex_engine, user_message)
+            
+            if llamaindex_response:
+                # Add to chat history
+                st.session_state.chat_history.append({
+                    'user': user_message,
+                    'assistant': f"**🦙 LlamaIndex Response:**\n\n{llamaindex_response}"
+                })
+                
+                # Save to search history
+                save_search_history(st.session_state.username, user_message, llamaindex_response, "llamaindex_search")
+                
+                # Show response immediately
+                st.success("✅ LlamaIndex response generated!")
+                with st.container():
+                    st.markdown(f"**🧑 You:** {user_message}")
+                    st.info("🦙 Response generated using LlamaIndex")
+                    st.markdown(f"**🤖 MediAid AI:** {llamaindex_response}")
+                
+                st.rerun()
+            else:
+                st.error("❌ LlamaIndex search failed. Falling back to keyword search.")
+                use_llamaindex = False
+        
+        if not use_llamaindex or not llamaindex_engine:
+            # Check if this is a complex query that needs decomposition
+            is_complex = is_complex_query(user_message)
+            
+            if is_complex and use_ai:
+                # Complex query path with task decomposition
+                st.info("🧠 **Complex Query Detected** - Using advanced task decomposition...")
+                
+                with st.spinner("🔍 Analyzing and decomposing your complex medical question..."):
+                    from openai import OpenAI
+                    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+                    
+                    # Step 1: Decompose the query
+                    decomposition = decompose_medical_query(user_message, client)
+                
+                if decomposition:
+                    # Show decomposition to user
+                    with st.expander("🧩 Query Analysis", expanded=True):
+                        st.markdown(f"**Main Topic:** {decomposition.get('main_topic', 'N/A')}")
+                        st.markdown(f"**Conditions to Research:** {', '.join(decomposition.get('conditions', []))}")
+                        st.markdown(f"**Complexity Level:** {decomposition.get('complexity_level', 'medium').title()}")
+                        if decomposition.get('sub_questions'):
+                            st.markdown("**Sub-questions to Address:**")
+                            for q in decomposition['sub_questions']:
+                                st.write(f"• {q}")
+                    
+                    # Step 2: Execute multi-faceted search
+                    with st.spinner("🔍 Conducting comprehensive research across multiple medical areas..."):
+                        complex_results = execute_complex_search(decomposition, vector_store)
+                    
+                    # Count total sources found
+                    total_sources = sum(len(results) for category in complex_results.values() for results in category.values())
+                    st.success(f"✅ Found {total_sources} relevant medical sources across multiple research areas")
+                    
+                    # Step 3: Synthesize comprehensive response
+                    with st.spinner("🤖 Synthesizing comprehensive response from multiple research streams..."):
+                        complex_response = synthesize_complex_response(user_message, decomposition, complex_results, st.session_state.chat_history, client)
+                    
+                    if complex_response:
+                        # Add to chat history
+                        st.session_state.chat_history.append({
+                            'user': user_message,
+                            'assistant': complex_response
+                        })
+                        
+                        # Save to search history with special type
+                        save_search_history(st.session_state.username, user_message, complex_response, "complex_analysis")
+                        
+                        # Show response
+                        st.success("✅ Comprehensive analysis complete!")
+                        with st.container():
+                            st.markdown(f"**🧑 You:** {user_message}")
+                            st.info("🧠 Response generated using Advanced Task Decomposition")
+                            st.markdown(f"**🤖 MediAid AI:** {complex_response}")
+                        
+                        # Show detailed sources by category
+                        with st.expander("📚 Research Sources by Category"):
+                            if complex_results["condition_searches"]:
+                                st.markdown("### 🩺 Condition Research")
+                                for condition, results in complex_results["condition_searches"].items():
+                                    st.markdown(f"**{condition}:**")
+                                    for i, result in enumerate(results[:2], 1):
+                                        st.write(f"{i}. {result['source']} - {result['text'][:150]}...")
+                            
+                            if complex_results["safety_searches"]:
+                                st.markdown("### ⚠️ Safety Research")
+                                for safety, results in complex_results["safety_searches"].items():
+                                    st.markdown(f"**{safety}:**")
+                                    for i, result in enumerate(results[:1], 1):
+                                        st.write(f"{i}. {result['source']} - {result['text'][:150]}...")
+                        
+                        st.rerun()
+                    else:
+                        st.error("❌ Complex analysis failed. Falling back to standard search.")
+                        # Fall back to standard search
+                        results = search_documents(vector_store, user_message, max_results=8)
+                else:
+                    st.warning("⚠️ Could not decompose query. Using standard search.")
+                    # Fall back to standard search
+                    results = search_documents(vector_store, user_message, max_results=8)
+            else:
+                # Standard search path
+                with st.spinner("Searching medical database and generating response..."):
+                    results = search_documents(vector_store, user_message, max_results=8)
         
         if results:
             # Generate conversational response
@@ -473,6 +1126,9 @@ def render_search_page(vector_store):
                         'user': user_message,
                         'assistant': ai_response
                     })
+                    
+                    # Save to search history
+                    save_search_history(st.session_state.username, user_message, ai_response, "ai_search")
                     
                     # Show latest response immediately
                     st.success("Response generated!")
@@ -500,6 +1156,9 @@ def render_search_page(vector_store):
                     'user': user_message,
                     'assistant': summary
                 })
+                
+                # Save to search history
+                save_search_history(st.session_state.username, user_message, summary, "keyword_search")
                 
                 st.success("Response generated!")
                 with st.container():
@@ -679,6 +1338,12 @@ def render_upload_page(vector_store):
                     user_message = None
         
         if user_message:
+            # GUARDRAIL: Check if the query is medical-related
+            if not is_medical_query(user_message):
+                st.error("🚫 **Policy Violation**: This is a violation of our application policy. MediAid AI is designed exclusively for medical and health-related questions. Please ask questions about your medical document.")
+                st.warning("**Examples of appropriate questions about your document:**\n- What medications are mentioned?\n- What are the lab results?\n- Explain this medical report\n- Are there any concerning values?")
+                return
+            
             # Add debug information
             st.info(f"🔍 Processing your question: {user_message}")
             
@@ -719,6 +1384,9 @@ def render_upload_page(vector_store):
                                 'assistant': ai_response
                             })
                             
+                            # Save to search history
+                            save_search_history(st.session_state.username, user_message, ai_response, "document_analysis")
+                            
                             # Show response immediately
                             st.success("✅ Analysis complete!")
                             with st.container():
@@ -755,6 +1423,9 @@ def render_upload_page(vector_store):
                             'user': user_message,
                             'assistant': summary
                         })
+                        
+                        # Save to search history
+                        save_search_history(st.session_state.username, user_message, summary, "document_keyword_analysis")
                         
                         st.success("✅ Analysis complete!")
                         with st.container():
@@ -1008,17 +1679,294 @@ def render_examples_page(vector_store):
                     st.session_state.current_page = 'browse'
                     st.rerun()
 
+def render_history_page():
+    """Render the search history page"""
+    st.title("📜 Search History")
+    st.markdown(f"**Search history for user:** {st.session_state.username}")
+    
+    # Load user history
+    user_history = load_user_history(st.session_state.username)
+    
+    if not user_history:
+        st.info("🔍 No search history found. Start searching to build your history!")
+        st.markdown("### 🚀 Quick Actions")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔍 Start Searching", use_container_width=True):
+                st.session_state.current_page = 'search'
+                st.rerun()
+        with col2:
+            if st.button("📤 Upload & Ask", use_container_width=True):
+                st.session_state.current_page = 'upload'
+                st.rerun()
+        return
+    
+    # Filter options
+    st.subheader("🔍 Filter History")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        search_type_filter = st.selectbox(
+            "Filter by search type:",
+            ["All", "ai_search", "document_analysis", "llamaindex_search", "keyword_search", "document_keyword_analysis"]
+        )
+    
+    with col2:
+        entries_to_show = st.selectbox("Show entries:", [10, 25, 50, 100], index=1)
+    
+    # Filter history
+    filtered_history = user_history
+    if search_type_filter != "All":
+        filtered_history = [entry for entry in user_history if entry.get('search_type') == search_type_filter]
+    
+    # Sort by timestamp (newest first)
+    filtered_history = sorted(filtered_history, key=lambda x: x.get('timestamp', ''), reverse=True)
+    filtered_history = filtered_history[:entries_to_show]
+    
+    # Search within history
+    search_term = st.text_input("🔍 Search within your history:", placeholder="Enter keywords to find specific searches...")
+    if search_term:
+        search_term_lower = search_term.lower()
+        filtered_history = [
+            entry for entry in filtered_history 
+            if search_term_lower in entry.get('query', '').lower() or search_term_lower in entry.get('response', '').lower()
+        ]
+        st.info(f"Found {len(filtered_history)} entries matching '{search_term}'")
+    
+    # Display history
+    st.subheader(f"📝 Recent Searches ({len(filtered_history)} entries)")
+    
+    if not filtered_history:
+        st.warning("No entries match your current filters.")
+        return
+    
+    for i, entry in enumerate(filtered_history):
+        timestamp = entry.get('timestamp', 'Unknown time')
+        query = entry.get('query', 'No query')
+        response = entry.get('response', 'No response')
+        search_type = entry.get('search_type', 'unknown')
+        full_length = entry.get('full_response_length', len(response))
+        
+        # Format timestamp
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            formatted_time = timestamp
+        
+        # Search type emoji
+        type_emoji = {
+            'ai_search': '🤖',
+            'document_analysis': '📄',
+            'llamaindex_search': '🦙',
+            'keyword_search': '🔍',
+            'document_keyword_analysis': '📋'
+        }
+        
+        with st.expander(f"{type_emoji.get(search_type, '🔍')} {query[:50]}{'...' if len(query) > 50 else ''} - {formatted_time}"):
+            st.markdown(f"**🕒 Time:** {formatted_time}")
+            st.markdown(f"**🔍 Search Type:** {search_type.replace('_', ' ').title()}")
+            st.markdown(f"**❓ Query:** {query}")
+            st.markdown(f"**💬 Response:** {response}")
+            
+            if full_length > len(response):
+                st.info(f"📏 Full response was {full_length} characters (truncated for storage)")
+            
+            # Quick actions
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"🔄 Search Again", key=f"research_{i}"):
+                    st.session_state.search_query = query
+                    st.session_state.current_page = 'search'
+                    st.rerun()
+            with col2:
+                if st.button(f"📋 Copy Query", key=f"copy_{i}"):
+                    st.code(query, language="text")
+                    st.success("Query copied to code block!")
+    
+    # Clear history option
+    st.markdown("---")
+    st.subheader("🗑️ Manage History")
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🗑️ Clear All History", type="secondary"):
+            st.session_state.confirm_clear_history = True
+    
+    # Confirmation dialog
+    if getattr(st.session_state, 'confirm_clear_history', False):
+        st.warning("⚠️ Are you sure you want to clear all your search history? This action cannot be undone.")
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            if st.button("✅ Yes, Clear", type="primary"):
+                try:
+                    history_file = os.path.join("history", "history.json")
+                    if os.path.exists(history_file):
+                        with open(history_file, 'r', encoding='utf-8') as f:
+                            history_data = json.load(f)
+                        
+                        # Clear user's history
+                        history_data[st.session_state.username] = []
+                        
+                        with open(history_file, 'w', encoding='utf-8') as f:
+                            json.dump(history_data, f, indent=2, ensure_ascii=False)
+                        
+                        st.success("✅ Search history cleared successfully!")
+                        st.session_state.confirm_clear_history = False
+                        st.rerun()
+                    else:
+                        st.info("No history file found.")
+                except Exception as e:
+                    st.error(f"Failed to clear history: {e}")
+        
+        with col2:
+            if st.button("❌ Cancel"):
+                st.session_state.confirm_clear_history = False
+                st.rerun()
+
+def validate_password(password):
+    """Validate password meets requirements"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    return True, "Password is valid"
+
+def check_credentials(username, password):
+    """Check if username and password are valid"""
+    # Simple hardcoded credentials - you can extend this with a database later
+    valid_users = {
+        "admin": "adminpass",
+        "doctor": "doctorpass",
+        "user": "userpass123",
+        "mediaid": "mediaid2025"
+    }
+    
+    if username in valid_users and valid_users[username] == password:
+        return True
+    return False
+
+def save_search_history(username: str, query: str, response: str, search_type: str = "search"):
+    """Save user search history to JSON file"""
+    try:
+        # Create history directory if it doesn't exist
+        history_dir = "history"
+        if not os.path.exists(history_dir):
+            os.makedirs(history_dir)
+        
+        # History file path
+        history_file = os.path.join(history_dir, "history.json")
+        
+        # Load existing history or create new
+        if os.path.exists(history_file):
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+        else:
+            history_data = {}
+        
+        # Initialize user history if not exists
+        if username not in history_data:
+            history_data[username] = []
+        
+        # Create search entry
+        search_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "query": query,
+            "response": response[:500] + "..." if len(response) > 500 else response,  # Truncate long responses
+            "search_type": search_type,  # 'search', 'upload', 'browse'
+            "full_response_length": len(response)
+        }
+        
+        # Add to user history (keep last 100 searches per user)
+        history_data[username].append(search_entry)
+        if len(history_data[username]) > 100:
+            history_data[username] = history_data[username][-100:]
+        
+        # Save to file
+        with open(history_file, 'w', encoding='utf-8') as f:
+            json.dump(history_data, f, indent=2, ensure_ascii=False)
+            
+        return True
+        
+    except Exception as e:
+        st.error(f"Failed to save search history: {e}")
+        return False
+
+def load_user_history(username: str) -> List[Dict]:
+    """Load search history for a specific user"""
+    try:
+        history_file = os.path.join("history", "history.json")
+        
+        if not os.path.exists(history_file):
+            return []
+        
+        with open(history_file, 'r', encoding='utf-8') as f:
+            history_data = json.load(f)
+        
+        return history_data.get(username, [])
+        
+    except Exception as e:
+        st.error(f"Failed to load search history: {e}")
+        return []
+
+def render_login_page():
+    """Render the login page"""
+    st.title("🏥 MediAid AI - Login")
+    st.markdown("Welcome to MediAid AI! Please login to access the medical information system.")
+    
+    # Center the login form
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("### 🔐 User Login")
+        
+        # Login form
+        with st.form("login_form"):
+            username = st.text_input("👤 Username", placeholder="Enter your username")
+            password = st.text_input("🔒 Password", type="password", placeholder="Enter your password")
+            
+            submitted = st.form_submit_button("🚀 Login", use_container_width=True)
+            
+            if submitted:
+                if not username:
+                    st.error("❌ Please enter a username")
+                elif not password:
+                    st.error("❌ Please enter a password")
+                else:
+                    # Validate password
+                    is_valid, message = validate_password(password)
+                    if not is_valid:
+                        st.error(f"❌ {message}")
+                    else:
+                        # Check credentials
+                        if check_credentials(username, password):
+                            st.session_state.authenticated = True
+                            st.session_state.username = username
+                            st.success(f"✅ Welcome, {username}!")
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("❌ Invalid username or password")
+
 def main():
     """Main Streamlit app with navigation"""
     
-    # Load medical search system
+    # Check authentication first
+    if not st.session_state.authenticated:
+        render_login_page()
+        return
+    
+    # Load medical search systems
     vector_store = load_medical_search()
+    llamaindex_query_engine = load_llamaindex_search()
+    
+    # Store in session state for access across pages
+    if 'llamaindex_engine' not in st.session_state:
+        st.session_state.llamaindex_engine = llamaindex_query_engine
     
     if not vector_store:
         st.error("Failed to load medical database. Please check the FAISS index file.")
         return
     
-    # Render navigation
+    # Render navigation (includes logout button at bottom)
     render_navigation()
     
     # Render current page
@@ -1032,14 +1980,17 @@ def main():
         render_browse_page(vector_store)
     elif st.session_state.current_page == 'disease_detail':
         render_disease_detail_page(vector_store)
-    elif st.session_state.current_page == 'examples':
+    elif st.session_state.current_page == 'history':
+        render_history_page()
+    elif st.session_state.current_page == 'faqs':
         render_examples_page(vector_store)
     
     # Footer
     st.markdown("---")
     st.markdown(
         "**MediAid AI** | Medical information from CDC and WHO databases | "
-        "⚠️ Always consult healthcare professionals for medical advice"
+        "⚠️ Always consult healthcare professionals for medical advice | "
+        "🔒 Medical queries only - Non-medical content is prohibited"
     )
 
 if __name__ == "__main__":
