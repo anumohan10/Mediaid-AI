@@ -12,7 +12,7 @@ A comprehensive intelligent medical assistant powered by **5 Core AI Technologie
 ## 🧠 Five Core AI Components
 
 ### 1. 🔍 **RAG System (Retrieval-Augmented Generation)**
-- **FAISS Vector Database**: 2,000+ medical documents from CDC and WHO
+- **FAISS & Pinecone Vector Database**: 5,400+ medical documents from CDC and WHO
 - **OpenAI Embeddings**: text-embedding-3-small for semantic search
 - **GPT-3.5-turbo Integration**: Context-aware medical responses
 - **Performance**: 94.2% accuracy, <500ms response time
