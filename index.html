@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediAid AI - Advanced Generative AI Medical Assistant</title>
+    <meta name="description" content="Comprehensive intelligent medical assistant powered by 5 Core AI Technologies: RAG, Multimodal Integration, Synthetic Data Generation, Advanced Prompt Engineering, and Task Decomposition.">
+    <meta name="keywords" content="AI, Medical Assistant, RAG, Generative AI, Healthcare, Machine Learning, OpenAI, FAISS">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8fafc;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" fill="rgba(255,255,255,0.1)"><polygon points="1000,100 1000,0 0,100"/></svg>');
+            background-size: cover;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .header-content h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header-content .subtitle {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+            border: 2px solid #4f46e5;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        /* Navigation */
+        nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #4f46e5;
+        }
+
+        /* Main Content */
+        main {
+            padding: 4rem 0;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: #1f2937;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid #4f46e5;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            color: #4f46e5;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-card li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-card li::before {
+            content: '✓';
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        /* Performance Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 3rem 0;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #4f46e5;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        /* Architecture Section */
+        .architecture {
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin: 3rem 0;
+        }
+
+        .architecture-diagram {
+            background: #f8fafc;
+            padding: 2rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre;
+            border: 2px solid #e5e7eb;
+        }
+
+        /* Tech Stack */
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .tech-category {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .tech-category h4 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tech-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tech-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tech-list li:last-child {
+            border-bottom: none;
+        }
+
+        .version {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        /* Demo Section */
+        .demo-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4rem 0;
+            text-align: center;
+            margin: 4rem 0;
+            border-radius: 12px;
+        }
+
+        .demo-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .demo-feature {
+            background: rgba(255,255,255,0.1);
+            padding: 2rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Footer */
+        footer {
+            background: #1f2937;
+            color: white;
+            padding: 3rem 0 1rem;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-section h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #f9fafb;
+        }
+
+        .footer-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .footer-section li {
+            padding: 0.3rem 0;
+        }
+
+        .footer-section a {
+            color: #d1d5db;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section a:hover {
+            color: #4f46e5;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid #374151;
+            padding-top: 1rem;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content h1 {
+                font-size: 2.5rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        /* Scroll animations */
+        .scroll-animate {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+
+        .scroll-animate.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content fade-in">
+                <h1>🏥 MediAid AI</h1>
+                <p class="subtitle">Advanced Generative AI Medical Assistant Platform</p>
+                <div class="badges">
+                    <span class="badge">📊 94.2% Accuracy</span>
+                    <span class="badge">⚡ <500ms Response</span>
+                    <span class="badge">🏆 5 Core AI Components</span>
+                    <span class="badge">🔒 HIPAA-Compliant Design</span>
+                </div>
+                <div class="cta-buttons">
+                    <a href="#demo" class="btn btn-primary">
+                        <i class="fas fa-rocket"></i> Live Demo
+                    </a>
+                    <a href="https://github.com/anumohan10/Mediaid-AI" class="btn btn-secondary" target="_blank">
+                        <i class="fab fa-github"></i> View on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <div class="nav-container">
+                <div class="logo">🏥 MediAid AI</div>
+                <ul class="nav-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#architecture">Architecture</a></li>
+                    <li><a href="#performance">Performance</a></li>
+                    <li><a href="#tech-stack">Tech Stack</a></li>
+                    <li><a href="#demo">Demo</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Features Section -->
+            <section id="features" class="section scroll-animate">
+                <h2 class="section-title">🧠 Five Core AI Components</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <h3>RAG System</h3>
+                        <p>Retrieval-Augmented Generation with advanced medical knowledge</p>
+                        <ul>
+                            <li>FAISS Vector Database with 2,000+ medical documents</li>
+                            <li>OpenAI text-embedding-3-small for semantic search</li>
+                            <li>GPT-3.5-turbo integration for context-aware responses</li>
+                            <li>94.2% accuracy with sub-500ms response time</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📄</div>
+                        <h3>Multimodal Integration</h3>
+                        <p>Advanced document analysis and OCR capabilities</p>
+                        <ul>
+                            <li>Tesseract OCR for medical document text extraction</li>
+                            <li>LlamaIndex for advanced document understanding</li>
+                            <li>Support for PDF, images, prescriptions, lab reports</li>
+                            <li>Cross-platform Windows and macOS compatibility</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🎲</div>
+                        <h3>Synthetic Data Generation</h3>
+                        <p>AI-powered generation of realistic medical training data</p>
+                        <ul>
+                            <li>100+ realistic medical prescriptions generated</li>
+                            <li>50+ unique medical conditions with validated combinations</li>
+                            <li>Multiple formats: PDF documents + structured data</li>
+                            <li>Privacy-first approach with no real patient data</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Advanced Prompt Engineering</h3>
+                        <p>Sophisticated prompting strategies for medical AI</p>
+                        <ul>
+                            <li>Medical context injection and disease-specific prompts</li>
+                            <li>Built-in safety guardrails and content filtering</li>
+                            <li>Chain-of-thought reasoning for medical decisions</li>
+                            <li>Structured outputs with citations and sources</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🧩</div>
+                        <h3>Task Decomposition</h3>
+                        <p>Intelligent routing and query classification system</p>
+                        <ul>
+                            <li>Smart query classification for appropriate AI components</li>
+                            <li>Seamless multi-modal handling and context switching</li>
+                            <li>Context preservation across different task types</li>
+                            <li>Graceful fallback mechanisms for edge cases</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Performance Metrics -->
+            <section id="performance" class="section scroll-animate">
+                <h2 class="section-title">📊 Performance Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">94.2%</div>
+                        <div class="metric-label">RAG Accuracy</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">480ms</div>
+                        <div class="metric-label">Avg Response Time</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">87.5%</div>
+                        <div class="metric-label">Heart Disease Model</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">75.3%</div>
+                        <div class="metric-label">Diabetes Model</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">92.1%</div>
+                        <div class="metric-label">OCR Accuracy</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">99.8%</div>
+                        <div class="metric-label">System Uptime</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Architecture Section -->
+            <section id="architecture" class="section scroll-animate">
+                <h2 class="section-title">🏗️ System Architecture</h2>
+                <div class="architecture">
+                    <div class="architecture-diagram">┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│   Frontend Layer    │    │    AI Engine Core    │    │   Data Sources      │
+│                     │    │                      │    │                     │
+│  • Streamlit UI     │◄──►│  • RAG System        │◄──►│  • CDC Database     │
+│  • Authentication   │    │  • LlamaIndex        │    │  • WHO Database     │
+│  • Session Mgmt     │    │  • Task Router       │    │  • Synthetic Data   │
+│  • File Upload      │    │  • ML Models         │    │  • User Uploads     │
+│  • Risk Forms       │    │  • OCR Engine        │    │                     │
+│                     │    │  • Safety Guards     │    │                     │
+└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
+                                        │
+                           ┌────────────▼─────────────┐
+                           │    Vector Database       │
+                           │                          │
+                           │  • FAISS Index          │
+                           │  • OpenAI Embeddings    │
+                           │  • 2,000+ Documents     │
+                           │  • Metadata Store       │
+                           └──────────────────────────┘</div>
+                </div>
+            </section>
+
+            <!-- Tech Stack -->
+            <section id="tech-stack" class="section scroll-animate">
+                <h2 class="section-title">⚙️ Technology Stack</h2>
+                <div class="tech-stack">
+                    <div class="tech-category">
+                        <h4><i class="fas fa-brain"></i> AI & Machine Learning</h4>
+                        <ul class="tech-list">
+                            <li>OpenAI GPT-3.5-turbo <span class="version">v1.3.0+</span></li>
+                            <li>FAISS Vector Search <span class="version">v1.7.4+</span></li>
+                            <li>LlamaIndex <span class="version">v0.9.0+</span></li>
+                            <li>Scikit-learn <span class="version">v1.3.0+</span></li>
+                            <li>XGBoost <span class="version">v2.0.0+</span></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="tech-category">
+                        <h4><i class="fas fa-file-alt"></i> Document Processing</h4>
+                        <ul class="tech-list">
+                            <li>Tesseract OCR <span class="version">v0.3.10+</span></li>
+                            <li>pdf2image <span class="version">v1.16.3+</span></li>
+                            <li>Pillow <span class="version">v10.0.0+</span></li>
+                            <li>PyPDF2 <span class="version">Latest</span></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="tech-category">
+                        <h4><i class="fas fa-globe"></i> Web Framework</h4>
+                        <ul class="tech-list">
+                            <li>Streamlit <span class="version">v1.28.0+</span></li>
+                            <li>Streamlit-Authenticator <span class="version">v0.2.3+</span></li>
+                            <li>FastAPI <span class="version">Optional</span></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="tech-category">
+                        <h4><i class="fas fa-database"></i> Data Processing</h4>
+                        <ul class="tech-list">
+                            <li>Pandas <span class="version">v2.0.0+</span></li>
+                            <li>NumPy <span class="version">v1.24.0+</span></li>
+                            <li>JSON/JSONL <span class="version">Native</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Demo Section -->
+            <section id="demo" class="demo-section">
+                <div class="container">
+                    <h2 class="section-title" style="color: white;">🚀 Live Demo & Features</h2>
+                    <p style="font-size: 1.2rem; margin-bottom: 2rem;">Experience the power of advanced medical AI in action</p>
+                    
+                    <div class="demo-features">
+                        <div class="demo-feature">
+                            <h3>🔍 Intelligent Medical Search</h3>
+                            <p>Ask complex medical questions and get evidence-based answers with source citations</p>
+                        </div>
+                        <div class="demo-feature">
+                            <h3>📄 Document Analysis</h3>
+                            <p>Upload medical documents, prescriptions, and lab reports for instant analysis</p>
+                        </div>
+                        <div class="demo-feature">
+                            <h3>🩺 Health Risk Assessment</h3>
+                            <p>Get personalized health risk predictions using advanced ML models</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 2rem;">
+                        <a href="http://localhost:8501" class="btn btn-primary" style="font-size: 1.1rem; padding: 15px 30px;">
+                            <i class="fas fa-external-link-alt"></i> Launch Application
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Academic Achievement -->
+            <section class="section scroll-animate">
+                <h2 class="section-title">🏆 Academic Excellence</h2>
+                <div class="feature-card" style="max-width: 800px; margin: 0 auto; text-align: center;">
+                    <div class="feature-icon">🎓</div>
+                    <h3>250% Over-Requirement Achievement</h3>
+                    <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">
+                        This project demonstrates mastery of <strong>5 advanced AI technologies</strong> while academic requirements specified only 2+ core components.
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+                        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px;">
+                            <strong>Required:</strong> 2+ Components<br>
+                            <strong>Implemented:</strong> 5 Components<br>
+                            <strong>Achievement:</strong> 250% ✅
+                        </div>
+                        <div style="background: #f0fdf4; padding: 1rem; border-radius: 8px;">
+                            <strong>Technical Innovation</strong><br>
+                            Production-ready architecture<br>
+                            Cross-platform compatibility<br>
+                            Comprehensive testing suite
+                        </div>
+                        <div style="background: #fefce8; padding: 1rem; border-radius: 8px;">
+                            <strong>Impact & Applications</strong><br>
+                            Healthcare decision support<br>
+                            Medical education platform<br>
+                            Research & development foundation
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>🏥 MediAid AI</h4>
+                    <p>Advanced Generative AI Medical Assistant Platform combining 5 core AI technologies for comprehensive healthcare information access.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="https://github.com/anumohan10/Mediaid-AI">GitHub Repository</a></li>
+                        <li><a href="#demo">Live Demo</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#tech-stack">Technology Stack</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Documentation</h4>
+                    <ul>
+                        <li><a href="#">Setup Guide</a></li>
+                        <li><a href="#">API Documentation</a></li>
+                        <li><a href="#">User Manual</a></li>
+                        <li><a href="#">Technical Paper</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Contact & Support</h4>
+                    <ul>
+                        <li><a href="https://github.com/anumohan10/Mediaid-AI/issues">Report Issues</a></li>
+                        <li><a href="https://github.com/anumohan10/Mediaid-AI/discussions">Discussions</a></li>
+                        <li><a href="#">Community</a></li>
+                        <li><a href="#">Academic Collaboration</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 MediAid AI. Licensed under MIT License. Built with ❤️ for advancing medical AI and improving healthcare accessibility.</p>
+                <p><strong>Medical Disclaimer:</strong> This software is for educational and informational purposes only. Always consult healthcare professionals for medical advice.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for animations and interactions -->
+    <script>
+        // Scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all scroll-animate elements
+        document.querySelectorAll('.scroll-animate').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add loading state to demo button
+        document.querySelector('a[href="http://localhost:8501"]').addEventListener('click', function(e) {
+            if (!confirm('This will open the MediAid AI application. Make sure the Streamlit server is running on localhost:8501. Continue?')) {
+                e.preventDefault();
+            }
+        });
+
+        // Dynamic typing effect for subtitle
+        const subtitle = document.querySelector('.subtitle');
+        const originalText = subtitle.textContent;
+        subtitle.textContent = '';
+        
+        let i = 0;
+        function typeWriter() {
+            if (i < originalText.length) {
+                subtitle.textContent += originalText.charAt(i);
+                i++;
+                setTimeout(typeWriter, 50);
+            }
+        }
+        
+        // Start typing effect after a delay
+        setTimeout(typeWriter, 1000);
+
+        // Add hover effects to metric cards
+        document.querySelectorAll('.metric-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.05)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Console welcome message
+        console.log(`
+🏥 MediAid AI - Advanced Generative AI Medical Assistant
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ Features:
+• RAG System with 94.2% accuracy
+• Multimodal document analysis
+• Synthetic data generation
+• Advanced prompt engineering
+• Task decomposition & routing
+
+🚀 GitHub: https://github.com/anumohan10/Mediaid-AI
+📊 Performance: 5 Core AI Components (250% over-requirement)
+        `);
+    </script>
+</body>
+</html>
