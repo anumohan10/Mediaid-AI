@@ -612,4 +612,4 @@ If you find **MediAid AI** helpful, educational, or innovative, please consider 
 
 *Last Updated: August 14, 2025*  
 *Version: 2.0.0*  
-*Maintainer: Sanat Popli | Anusree Mohnan*
+*Maintainer: Sanat Popli | Anusree Mohanan*
