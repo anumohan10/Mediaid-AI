@@ -90,6 +90,27 @@
       "response": "**OVERVIEW**:\nThe main medical question is about the safety of medications for diabetes and high blood pressure during pregnancy.\n\n**CONDITION ANALYSIS**:\n- **Diabetes**:\n  - Type 2 diabetes affects how the body uses sugar for energy.\n  - It can lead to high levels of glucose in the blood if insulin is not used properly.\n- **High Blood Pressure**:\n  - Chronic blood shortages can pose a risk of serious infections like HIV and hepatitis.\n  - Blood transfusions are crucial for saving lives and impr...",
       "search_type": "complex_analysis",
       "full_response_length": 1733
+    },
+    {
+      "timestamp": "2025-08-14T21:10:56.732521",
+      "query": "what does this medical report says?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a PET-CT scan procedure using a radioactive tracer called FDG (fluoro-2-deoxy-D-glucose). The scan was done from the vertex (top of the head) to the mid-thigh to assess various areas of your body. The report mentions observations in the head and neck, noting normal physiological tracer distribution in the brain parenchyma (brain tissue) and some findings in the maxillary sinus.\n\nThe report also mentions the blood glucose ...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1192
+    },
+    {
+      "timestamp": "2025-08-14T21:11:29.880055",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "Mucoepidermoid carcinoma is a type of cancer that can develop in various glands in the body, most commonly in the salivary glands. It's a rare type of cancer, but it's important to be aware of its symptoms and treatment options.\n\nIf you or someone you know is concerned about mucoepidermoid carcinoma, it's essential to consult with a healthcare professional for a proper diagnosis and personalized treatment plan. They can provide more detailed information and guidance based on individual circumsta...",
+      "search_type": "ai_search",
+      "full_response_length": 750
+    },
+    {
+      "timestamp": "2025-08-14T21:12:21.000244",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "1. **Overview**: Mucoepidermoid carcinoma is a type of cancer that can develop in various glands throughout the body, most commonly in the salivary glands. It is characterized by a mixture of mucous-producing cells and squamous cells.\n\n2. **Key Facts**:\n   - Mucoepidermoid carcinoma is one of the most common types of salivary gland cancers.\n   - Symptoms may include a painless lump in the mouth, neck, or throat, difficulty swallowing, facial paralysis, or persistent pain in the affected area.\n  ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1578
     }
   ],
   "admin": [
