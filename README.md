@@ -4,6 +4,8 @@
 
 A comprehensive intelligent medical assistant powered by **5 Core AI Technologies**, combining RAG (Retrieval-Augmented Generation), Multimodal Integration, Synthetic Data Generation, Advanced Prompt Engineering, and Task Decomposition to provide accurate, safe, and personalized medical information.
 
+🎥 **Demo Video**: [Watch here](https://drive.google.com/file/d/10y0j81zjhYxkGGdXtJ7q9Dz-29nOkgtO/view?usp=drive_link)
+
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![AI](https://img.shields.io/badge/AI-GPT--3.5--turbo-orange.svg)
