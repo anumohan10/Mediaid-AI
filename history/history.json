@@ -90,6 +90,62 @@
       "response": "**OVERVIEW**:\nThe main medical question is about the safety of medications for diabetes and high blood pressure during pregnancy.\n\n**CONDITION ANALYSIS**:\n- **Diabetes**:\n  - Type 2 diabetes affects how the body uses sugar for energy.\n  - It can lead to high levels of glucose in the blood if insulin is not used properly.\n- **High Blood Pressure**:\n  - Chronic blood shortages can pose a risk of serious infections like HIV and hepatitis.\n  - Blood transfusions are crucial for saving lives and impr...",
       "search_type": "complex_analysis",
       "full_response_length": 1733
+    },
+    {
+      "timestamp": "2025-08-15T14:52:47.972771",
+      "query": "Can you please explain this prescription? ",
+      "response": "Sure! Let's break down the prescription for Frances Spence:\n\n1. Atorvastatin 20 mg tid: Atorvastatin is a medication used to lower cholesterol levels in the blood. The dose here is 20 mg taken three times a day.\n\n2. Metoprolol 50 mg prn: Metoprolol is a beta-blocker that helps with conditions like high blood pressure or heart problems. The dose is 50 mg to be taken as needed.\n\n3. Levothyroxine: 25 Mcg, Qd, Po For 10 Days: Levothyroxine is a thyroid hormone replacement medication. The dose here i...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 949
+    },
+    {
+      "timestamp": "2025-08-15T14:53:20.783965",
+      "query": "Can you please explain this prescription?",
+      "response": "Sure! Let's break down the prescription for Frances Spence based on the uploaded document:\n\n1. Atorvastatin 20 mg tid: Atorvastatin is a medication that helps lower cholesterol levels in the blood. The dose here is 20 mg to be taken three times a day.\n\n2. Metoprolol 50 mg prn: Metoprolol is a beta-blocker that can be used for conditions like high blood pressure or heart issues. The dose here is 50 mg to be taken as needed.\n\n3. Levothyroxine: 25 Mcg, Qd, Po For 10 Days: Levothyroxine is a thyroid...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1064
+    },
+    {
+      "timestamp": "2025-08-15T14:54:07.687657",
+      "query": "Can you please explain this prescription?",
+      "response": "Sure! Let's break down the prescription for Frances Spence based on the uploaded document:\n\n1. Atorvastatin 20 mg tid: Atorvastatin is a medication that helps lower cholesterol levels in the blood. The dose here is 20 mg to be taken three times a day.\n\n2. Metoprolol 50 mg prn: Metoprolol is a beta-blocker that can be used for conditions like high blood pressure or heart issues. The dose here is 50 mg to be taken as needed.\n\n3. Levothyroxine: 25 Mcg, Qd, Po For 10 Days: Levothyroxine is a thyroid...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1064
+    },
+    {
+      "timestamp": "2025-08-15T14:54:40.089172",
+      "query": "Can you please explain this prescription?",
+      "response": "1. **Overview**:\n   - The uploaded medical document is a prescription for a patient named Frances Spence, prescribed by Dr. Gwendolyn Campbell. The prescription includes Atorvastatin 20 mg three times a day, Metoprolol 50 mg as needed, and Levothyroxine 25 mcg once daily by mouth for 10 days.\n\n2. **Key Facts**:\n   - Atorvastatin is a medication used to lower cholesterol levels in the blood.\n   - Metoprolol is a beta-blocker that is commonly used to treat high blood pressure, chest pain, and hear...",
+      "search_type": "llamaindex_document_analysis",
+      "full_response_length": 1912
+    },
+    {
+      "timestamp": "2025-08-15T14:56:33.307032",
+      "query": "can you explain me this medical report? ",
+      "response": "Based on the medical document you uploaded, it seems to be a report related to a procedure called Whole Body PET-CT scan using a radioactive tracer called FDG (fluoro-2-deoxy-D-glucose). This scan helps in imaging different parts of the body to detect any abnormalities or diseases.\n\nThe document mentions that the scan was done from the vertex (top of the head) to mid-thigh. It also notes the use of oral contrast for bowel visualization before the scan. The blood glucose level at the time of the ...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1084
+    },
+    {
+      "timestamp": "2025-08-15T14:56:59.145931",
+      "query": "can you explain me this medical report?",
+      "response": "1. **Overview**:\n   - The uploaded medical document is a report detailing a PET-CT scan procedure using fluorodeoxyglucose (FDG) for imaging. It includes observations of the head and neck region.\n\n2. **Key Facts**:\n   - The report describes the administration of FDG for a PET-CT scan from the vertex to mid-thigh.\n   - It mentions the use of oral contrast for bowel opacification before the scan.\n   - The blood glucose level at the time of FDG injection was 110 mg/dl.\n   - Normal physiological tra...",
+      "search_type": "llamaindex_document_analysis",
+      "full_response_length": 1597
+    },
+    {
+      "timestamp": "2025-08-15T14:59:07.547317",
+      "query": "can you explain me this medical report?",
+      "response": "1. **Overview**: Japanese encephalitis is a viral infection that is transmitted through mosquito bites. It primarily affects the brain and can lead to severe complications, including inflammation of the brain.\n   \n2. **Key Facts**:\n   - Symptoms may include fever, headache, vomiting, confusion, and difficulty moving.\n   - In severe cases, Japanese encephalitis can cause seizures, paralysis, and even death.\n   - The disease is more common in rural areas of Asia and the Western Pacific regions.\n  ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1971
+    },
+    {
+      "timestamp": "2025-08-15T15:00:17.321970",
+      "query": "Learn about the health effects of harmful algal blooms in water",
+      "response": "- **Overview**: Harmful algal blooms are the rapid growth of algae or cyanobacteria in water that can have detrimental effects on human health, animals, and the environment. These blooms can produce toxins that pose health risks when individuals come into contact with contaminated water.\n\n- **Key Facts**:\n  - Algae and cyanobacteria are plant-like organisms that can quickly multiply and form blooms in water bodies.\n  - Harmful algal blooms can appear as foam, scum, mats, or paint on the water's ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 2314
     }
   ],
   "admin": [

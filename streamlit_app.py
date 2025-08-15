@@ -17,22 +17,124 @@ from pathlib import Path
 from llama_index.core import Settings, VectorStoreIndex, Document
 from llama_index.llms.openai import OpenAI as LIOpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
+import joblib
+import streamlit as st
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+
+
+# ---- API key loading (robust) ----------------------------------------------
+from pathlib import Path
+from dotenv import load_dotenv
+import streamlit as st
 import os
 
-# Load .env next to this file (reliable)
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+def big_emoji(emoji: str = "🏥", size_px: int = 96):
+    st.markdown(
+        f"""
+        <div style="text-align:center;">
+            <span style="font-size:{size_px}px; line-height:1">{emoji}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+import time
 
-print("API Key Loaded?", bool(os.getenv("OPENAI_API_KEY")))
+def render_onboarding_prelogin():
+    # Hide sidebar while onboarding (optional)
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"] { display: none; }
+        </style>
+    """, unsafe_allow_html=True)
 
-Settings.llm = LIOpenAI(model="gpt-3.5-turbo", temperature=0.1, api_key=os.getenv("OPENAI_API_KEY"))
-Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=os.getenv("OPENAI_API_KEY"))
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        big_emoji("🏥", size_px=140)
+        st.markdown(
+            "<h1 style='text-align:center;margin:0'>MediAid AI</h1>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            "<p style='text-align:center;font-size:18px;color:#666'>"
+            "Your evidence-based medical information companion"
+            "</p>", unsafe_allow_html=True
+        )
 
-docs = [Document(text="Diabetes mellitus is a metabolic disease with high blood glucose."),
-        Document(text="Hypertension is high blood pressure; lifestyle and medication help.")]
+        with st.spinner("Preparing your workspace…"):
+            prog = st.progress(0)
+            for i in range(0, 101, 8):
+                time.sleep(0.06)
+                prog.progress(i)
 
-idx = VectorStoreIndex.from_documents(docs)
-qe = idx.as_query_engine(similarity_top_k=2, response_mode="tree_summarize")
-print(qe.query("What is diabetes?"))  # should print a coherent answer
+        # mark onboarding complete for this session, then go to login
+        st.session_state.did_onboard = True
+        st.rerun()
+
+
+def _load_api_key() -> str | None:
+    # 1) .env next to this file
+    script_env = Path(__file__).parent / ".env"
+    if script_env.exists():
+        load_dotenv(dotenv_path=script_env, override=False)
+
+    # 2) .env in current working directory (useful when launching via `streamlit run`)
+    cwd_env = Path.cwd() / ".env"
+    if cwd_env.exists():
+        load_dotenv(dotenv_path=cwd_env, override=False)
+
+    # 3) streamlit secrets (if set)
+    key = os.getenv("OPENAI_API_KEY")
+    if (not key) and hasattr(st, "secrets"):
+        try:
+            key = st.secrets.get("OPENAI_API_KEY", None)
+        except Exception:
+            key = key  # ignore
+
+    # normalize empty/placeholder
+    if key and key.strip().lower() != "your-api-key-here":
+        return key.strip()
+    return None
+
+OPENAI_API_KEY = _load_api_key()
+
+# Minimal, safe debug (shows only prefix/suffix so you don't leak it)
+def _mask(k: str) -> str:
+    return f"{k[:6]}…{k[-4:]}" if k and len(k) > 12 else str(bool(k))
+
+print("API Key Loaded?", bool(OPENAI_API_KEY))
+if OPENAI_API_KEY:
+    print("API key (masked):", _mask(OPENAI_API_KEY))
+
+# ---- Configure LlamaIndex only if key exists -------------------------------
+from llama_index.core import Settings
+from llama_index.llms.openai import OpenAI as LIOpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
+
+if OPENAI_API_KEY:
+    Settings.llm = LIOpenAI(model="gpt-3.5-turbo", temperature=0.1, api_key=OPENAI_API_KEY)
+    Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+else:
+    # Do NOT initialize LlamaIndex or embeddings when the key is missing
+    Settings.llm = None
+    Settings.embed_model = None
+    # Optional: show a gentle warning in the sidebar later
+
+# ---- Only build the test index if a key is present -------------------------
+if OPENAI_API_KEY:
+    from llama_index.core import VectorStoreIndex, Document
+    docs = [
+        Document(text="Diabetes mellitus is a metabolic disease with high blood glucose."),
+        Document(text="Hypertension is high blood pressure; lifestyle and medication help.")
+    ]
+    idx = VectorStoreIndex.from_documents(docs)
+    qe = idx.as_query_engine(similarity_top_k=2, response_mode="tree_summarize")
+    print(qe.query("What is diabetes?"))
+
 
 # Add utils to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
@@ -60,6 +162,10 @@ if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'username' not in st.session_state:
     st.session_state.username = ""
+if 'risk_chat_history' not in st.session_state:
+    st.session_state.risk_chat_history = []
+if 'last_risk_context' not in st.session_state:
+    st.session_state.last_risk_context = ""
 
 @st.cache_resource
 def load_medical_search():
@@ -118,7 +224,7 @@ def load_llamaindex_search():
             response_mode="tree_summarize",
             verbose=False,
         )
-        st.success(f"✅ LlamaIndex loaded {len(documents)} medical documents")
+        # st.success(f"✅ LlamaIndex loaded {len(documents)} medical documents")
         return query_engine
 
     except ImportError:
@@ -144,6 +250,49 @@ def get_medical_topics(_vector_store):
                 topics.add(topic)
     
     return sorted(list(topics))
+
+@st.cache_resource
+def load_models():
+    """Load heart & diabetes risk pipelines from the models folder."""
+    import os, joblib
+
+    models = {}
+    paths = {
+        "heart": "models/heart_pipeline.pkl",
+        "diabetes": "models/diabetes_pipeline.pkl",
+    }
+
+    for key, path in paths.items():
+        try:
+            if os.path.exists(path):
+                models[key] = joblib.load(path, mmap_mode=None)
+                # st.info(f"Loaded {key} model from {os.path.basename(path)}")
+            else:
+                st.warning(f"{key.capitalize()} model file not found: {path}")
+        except Exception as e:
+            st.error(f"Could not load {key} model: {e}")
+
+    return models
+
+def format_percent(p):
+    try:
+        return f"{float(p)*100:.1f}%"
+    except Exception:
+        return str(p)
+
+def predict_with_pipeline(model, X):
+    """Return (risk_pct, yhat) from a sklearn pipeline or estimator."""
+    # proba of positive class if available, else fallback
+    if hasattr(model, "predict_proba"):
+        risk = float(model.predict_proba(X)[0][1])
+    elif hasattr(model, "decision_function"):
+        import numpy as np
+        z = float(model.decision_function(X)[0])
+        risk = 1.0 / (1.0 + np.exp(-z))   # logistic squash
+    else:
+        risk = float(model.predict(X)[0])  # 0/1
+    yhat = int(model.predict(X)[0])
+    return risk, yhat
 
 def search_documents_llamaindex(llamaindex_engine, query: str) -> str:
     """Search using LlamaIndex query engine with enhanced prompting"""
@@ -653,6 +802,44 @@ Your response should be:
         st.error(f"AI Response Error: {e}")
         return None
 
+def ask_followup_with_rag(vector_store, question: str, extra_context: str, llamaindex_engine=None):
+    """
+    If the LlamaIndex toggle is ON and an engine exists, answer with LlamaIndex (no FAISS sources).
+    Otherwise: search FAISS with the user's question, then answer with OpenAI using both the FAISS
+    snippets and the extra_context (risk/document summary).
+    """
+    use_llama = bool(st.session_state.get("use_llamaindex")) and (llamaindex_engine is not None)
+
+    if use_llama:
+        # LlamaIndex path (no FAISS sources)
+        augmented = (
+            f"USER CONTEXT (risk/report summary):\n{extra_context}\n\n"
+            f"USER QUESTION:\n{question}\n\n"
+            "Give a concise, safe, medically grounded answer."
+        )
+        reply = search_documents_llamaindex(llamaindex_engine, augmented)
+        return reply, []  # no sources (LlamaIndex handled retrieval)
+    else:
+        # FAISS path: search with the *question* (not the big augmented block)
+        results = search_documents(vector_store, question, max_results=8)
+
+        load_dotenv()
+        api_key = os.getenv('OPENAI_API_KEY')
+        use_ai = api_key and api_key != 'your-api-key-here' and len(api_key) > 20
+
+        if use_ai:
+            reply = get_conversational_response(
+                user_message=question,
+                chat_history=st.session_state.risk_chat_history,
+                results=results,
+                document_context=extra_context,  # <- feed risk/report summary as context
+            )
+            return reply, results
+        else:
+            return get_keyword_summary(question, results), results
+
+
+
 def render_navigation():
     """Render navigation sidebar"""
     st.sidebar.title("🏥 MediAid AI")
@@ -672,7 +859,12 @@ def render_navigation():
         st.session_state.current_page = 'upload'
         st.session_state.selected_disease = None
         st.rerun()
-    
+        
+    if st.sidebar.button("🩺 Risk Check", use_container_width=True, key="nav_risk"):
+        st.session_state.current_page = 'risk'
+        st.session_state.selected_disease = None
+        st.rerun()
+
     if st.sidebar.button("📋 Browse Topics", use_container_width=True, key="nav_browse"):
         st.session_state.current_page = 'browse'
         st.session_state.selected_disease = None
@@ -708,9 +900,9 @@ def render_navigation():
     
     # Show LlamaIndex status
     if 'llamaindex_engine' in st.session_state and st.session_state.llamaindex_engine:
-        st.sidebar.success("🦙 LlamaIndex: Ready")
-        use_llamaindex = st.sidebar.checkbox("Use LlamaIndex for search", value=False, key="use_llamaindex")
-        compare_engines = st.sidebar.checkbox("Compare both search engines", value=False, key="compare_engines")
+        # st.sidebar.success("🦙 LlamaIndex: Ready")
+        use_llamaindex = st.sidebar.checkbox("Get Detailed Analysis", value=False, key="use_llamaindex")
+        compare_engines = st.sidebar.checkbox("Compare Results", value=False, key="compare_engines")
     else:
         st.sidebar.warning("🦙 LlamaIndex: Not Available")
         use_llamaindex = False
@@ -719,16 +911,16 @@ def render_navigation():
     # Removed debug information for production
     
     if api_key and api_key != 'your-api-key-here' and len(api_key) > 20:
-        st.sidebar.success("🤖 AI Summaries: Enabled")
-        use_ai = st.sidebar.checkbox("Use AI-powered summaries", value=True, key="ai_summaries_diabetes")
+        # st.sidebar.success("🤖 AI Summaries: Enabled")
+        use_ai = st.sidebar.checkbox("Use AI-Powered Summaries", value=True, key="ai_summaries_diabetes")
         
-        # Task Decomposition Feature
-        st.sidebar.success("🧠 Task Decomposition: Enabled")
-        st.sidebar.info("Complex queries will be automatically analyzed and broken down into sub-tasks")
+        # # Task Decomposition Feature
+        # st.sidebar.success("🧠 Task Decomposition: Enabled")
+        # st.sidebar.info("Complex queries will be automatically analyzed and broken down into sub-tasks")
         
-        # Content Guardrails
-        st.sidebar.success("🔒 Content Guardrails: Active")
-        st.sidebar.info("Non-medical queries are automatically blocked")
+        # # Content Guardrails
+        # st.sidebar.success("🔒 Content Guardrails: Active")
+        # st.sidebar.info("Non-medical queries are automatically blocked")
         
         # Removed test button for production
     else:
@@ -759,18 +951,18 @@ def render_home_page(vector_store):
     # Show system status
     col1, col2 = st.columns(2)
     
-    with col1:
-        if vector_store:
-            st.success(f"✅ FAISS: Loaded {vector_store.index.ntotal} medical documents")
-        else:
-            st.error("❌ FAISS: Not loaded")
+    # with col1:
+    #     if vector_store:
+    #         st.success(f"✅ FAISS: Loaded {vector_store.index.ntotal} medical documents")
+    #     else:
+    #         st.error("❌ FAISS: Not loaded")
     
-    with col2:
-        llamaindex_query_engine = st.session_state.get('llamaindex_engine', None)
-        if llamaindex_query_engine:
-            st.success("✅ LlamaIndex: Ready for intelligent search")
-        else:
-            st.warning("⚠️ LlamaIndex: Not available (requires OpenAI API)")
+    # with col2:
+    #     llamaindex_query_engine = st.session_state.get('llamaindex_engine', None)
+    #     if llamaindex_query_engine:
+    #         st.success("✅ LlamaIndex: Ready for intelligent search")
+    #     else:
+    #         st.warning("⚠️ LlamaIndex: Not available (requires OpenAI API)")
     
     # # Quick stats
     # col1, col2, col3, col4 = st.columns(4)
@@ -793,8 +985,8 @@ def render_home_page(vector_store):
     with col1:
         st.markdown("""
         ### 🔍 Smart Search
-        - **FAISS**: Fast keyword-based search
-        - **🦙 LlamaIndex**: Intelligent semantic search
+        - Fast keyword-based search
+        - Intelligent semantic search
         - AI-powered summaries
         - Source attribution
         
@@ -845,47 +1037,47 @@ def render_home_page(vector_store):
     #         - 🤖 AI-powered insights
     #         """)
     
-    # Task Decomposition Feature Demo
-    st.markdown("---")
-    st.subheader("🧠 Advanced Task Decomposition")
-    st.markdown("**New Agentic AI Feature:** Automatically breaks down complex medical queries into manageable sub-tasks")
+    # # Task Decomposition Feature Demo
+    # st.markdown("---")
+    # st.subheader("🧠 Advanced Task Decomposition")
+    # st.markdown("**New Agentic AI Feature:** Automatically breaks down complex medical queries into manageable sub-tasks")
     
-    col1, col2 = st.columns(2)
+    # col1, col2 = st.columns(2)
     
-    with col1:
-        st.markdown("""
-        **🔍 What It Does:**
-        - Analyzes complex multi-condition queries
-        - Breaks them into specific research tasks
-        - Searches each aspect systematically
-        - Synthesizes comprehensive responses
-        """)
+    # with col1:
+    #     st.markdown("""
+    #     **🔍 What It Does:**
+    #     - Analyzes complex multi-condition queries
+    #     - Breaks them into specific research tasks
+    #     - Searches each aspect systematically
+    #     - Synthesizes comprehensive responses
+    #     """)
         
-        st.markdown("""
-        **🎯 Perfect For:**
-        - Multiple medical conditions
-        - Drug interactions & safety
-        - Pregnancy-related questions
-        - Elderly care considerations
-        """)
+    #     st.markdown("""
+    #     **🎯 Perfect For:**
+    #     - Multiple medical conditions
+    #     - Drug interactions & safety
+    #     - Pregnancy-related questions
+    #     - Elderly care considerations
+    #     """)
     
-    with col2:
-        st.markdown("""
-        **💡 Example Complex Queries:**
-        - *"I have diabetes and high blood pressure, am pregnant, what medications are safe?"*
-        - *"Elderly patient with heart disease and kidney problems - drug interactions?"*
-        - *"Child with asthma and allergies - vaccine safety considerations?"*
-        """)
+    # with col2:
+    #     st.markdown("""
+    #     **💡 Example Complex Queries:**
+    #     - *"I have diabetes and high blood pressure, am pregnant, what medications are safe?"*
+    #     - *"Elderly patient with heart disease and kidney problems - drug interactions?"*
+    #     - *"Child with asthma and allergies - vaccine safety considerations?"*
+    #     """)
         
         # Demo button
-        if st.button("🚀 Try Complex Query Demo", key="complex_demo"):
+        if st.button("🚀 Try Demo", key="complex_demo"):
             demo_query = "I have diabetes and high blood pressure and I'm pregnant. What medications are safe?"
             st.session_state.search_query = demo_query
             st.session_state.current_page = 'search'
             st.rerun()
     
     # Quick search
-    st.markdown("---")
+    # st.markdown("---")
     st.subheader("🚀 Quick Search")
     
     quick_query = st.text_input(
@@ -971,12 +1163,12 @@ def render_search_page(vector_store):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("### 🦙 LlamaIndex Response")
-                with st.spinner("🦙 Searching with LlamaIndex..."):
+                st.markdown("### Enhanced AI Response")
+                with st.spinner("Searching for response.."):
                     llamaindex_response = search_documents_llamaindex(llamaindex_engine, user_message)
                 
                 if llamaindex_response:
-                    st.info("🦙 LlamaIndex Results")
+                    st.info("Enhanced AIResults")
                     st.markdown(llamaindex_response)
                 else:
                     st.error("❌ LlamaIndex search failed")
@@ -1005,24 +1197,24 @@ def render_search_page(vector_store):
         
         elif use_llamaindex and llamaindex_engine:
             # Use LlamaIndex for search
-            with st.spinner("🦙 Searching with LlamaIndex..."):
+            with st.spinner("Searching for answer..."):
                 llamaindex_response = search_documents_llamaindex(llamaindex_engine, user_message)
             
             if llamaindex_response:
                 # Add to chat history
                 st.session_state.chat_history.append({
                     'user': user_message,
-                    'assistant': f"**🦙 LlamaIndex Response:**\n\n{llamaindex_response}"
+                    'assistant': f"**Enhanced Response:**\n\n{llamaindex_response}"
                 })
                 
                 # Save to search history
                 save_search_history(st.session_state.username, user_message, llamaindex_response, "llamaindex_search")
                 
                 # Show response immediately
-                st.success("✅ LlamaIndex response generated!")
+                st.success("✅ AI response generated!")
                 with st.container():
                     st.markdown(f"**🧑 You:** {user_message}")
-                    st.info("🦙 Response generated using LlamaIndex")
+                    # st.info("🦙 Response generated using LlamaIndex")
                     st.markdown(f"**🤖 MediAid AI:** {llamaindex_response}")
                 
                 st.rerun()
@@ -1036,7 +1228,7 @@ def render_search_page(vector_store):
             
             if is_complex and use_ai:
                 # Complex query path with task decomposition
-                st.info("🧠 **Complex Query Detected** - Using advanced task decomposition...")
+                # st.info("🧠 **Complex Query Detected** - Using advanced task decomposition...")
                 
                 with st.spinner("🔍 Analyzing and decomposing your complex medical question..."):
                     from openai import OpenAI
@@ -1208,9 +1400,9 @@ def render_upload_page(vector_store):
     
     # LlamaIndex status for upload page
     if llamaindex_engine:
-        st.sidebar.success("🦙 LlamaIndex: Available for document analysis")
-        use_llamaindex_upload = st.sidebar.checkbox("Use LlamaIndex for document analysis", value=False, key="use_llamaindex_upload")
-        st.sidebar.info("LlamaIndex provides enhanced contextual understanding of your documents")
+        # st.sidebar.success("🦙 LlamaIndex: Available for document analysis")
+        use_llamaindex_upload = st.sidebar.checkbox("Use Enhanced AI Document Analysis", value=False, key="use_llamaindex_upload")
+        # st.sidebar.info("LlamaIndex provides enhanced contextual understanding of your documents")
     else:
         st.sidebar.warning("🦙 LlamaIndex: Not available")
         use_llamaindex_upload = False
@@ -1226,7 +1418,7 @@ def render_upload_page(vector_store):
         return
     
     # Document upload section
-    st.subheader("📤 Upload Medical Document")
+    # st.subheader("📤 Upload Medical Document")
     
     # Create OCR interface
     extracted_text = create_ocr_interface()
@@ -1269,11 +1461,11 @@ def render_upload_page(vector_store):
         # Suggested questions
         st.subheader("💡 Suggested Questions")
         
-        # Show which analysis method will be used
-        if use_llamaindex_upload and llamaindex_engine:
-            st.info("🦙 **LlamaIndex Enhanced Analysis** - Click any question below for advanced AI analysis of your document:")
-        else:
-            st.info("⚡ **FAISS + AI Analysis** - Click any question below to analyze your document:")
+        # # Show which analysis method will be used
+        # if use_llamaindex_upload and llamaindex_engine:
+        #     st.info("🦙 **LlamaIndex Enhanced Analysis** - Click any question below for advanced AI analysis of your document:")
+        # else:
+        #     st.info("⚡ **FAISS + AI Analysis** - Click any question below to analyze your document:")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -1381,7 +1573,7 @@ def render_upload_page(vector_store):
             # Choose search method based on user preference
             if use_llamaindex_upload and llamaindex_engine:
                 # Use LlamaIndex for enhanced document analysis
-                st.info("🦙 Using LlamaIndex for enhanced document analysis...")
+                # st.info("🦙 Using LlamaIndex for enhanced document analysis...")
                 
                 with st.spinner("🧠 Analyzing document with advanced AI..."):
                     try:
@@ -1417,10 +1609,10 @@ def render_upload_page(vector_store):
                             save_search_history(st.session_state.username, user_message, llamaindex_response, "llamaindex_document_analysis")
                             
                             # Show response immediately
-                            st.success("✅ LlamaIndex analysis complete!")
+                            st.success("✅ Advanced Analysis complete!")
                             with st.container():
                                 st.markdown(f"**🧑 You:** {user_message}")
-                                st.info("🦙 Response generated using LlamaIndex with your uploaded document")
+                                # st.info("🦙 Response generated using LlamaIndex with your uploaded document")
                                 st.markdown(f"**🤖 MediAid AI:** {llamaindex_response}")
                             
                             # Show document context used
@@ -1439,7 +1631,7 @@ def render_upload_page(vector_store):
             
             # Standard FAISS search for document analysis
             if not use_llamaindex_upload:
-                st.info("⚡ Using FAISS search for document analysis...")
+                # st.info("⚡ Using FAISS search for document analysis...")
                 
                 # Search for relevant documents
                 with st.spinner("Analyzing your document and searching medical database..."):
@@ -1453,7 +1645,7 @@ def render_upload_page(vector_store):
             if results:
                 # Generate response using FAISS + AI
                 if use_ai:
-                    st.info("🤖 Generating AI response with FAISS search results...")
+                    st.info("🤖 Generating AI response...")
                     try:
                         ai_response = get_conversational_response(enhanced_query, st.session_state.upload_chat_history, results, document_context)
                         
@@ -1468,10 +1660,10 @@ def render_upload_page(vector_store):
                             save_search_history(st.session_state.username, user_message, ai_response, "faiss_document_analysis")
                             
                             # Show response immediately
-                            st.success("✅ FAISS + AI analysis complete!")
+                            # st.success("✅ FAISS + AI analysis complete!")
                             with st.container():
                                 st.markdown(f"**🧑 You:** {user_message}")
-                                st.info("⚡ Response based on FAISS search + AI analysis of your document")
+                                # st.info("⚡ Response based on FAISS search + AI analysis of your document")
                                 st.markdown(f"**🤖 MediAid AI:** {ai_response}")
                             
                             # Add sources
@@ -1523,29 +1715,29 @@ def render_upload_page(vector_store):
         st.info("👆 Upload a medical document above to start asking questions about it!")
         
         # Explain search engine options
-        if llamaindex_engine:
-            st.markdown("---")
-            st.subheader("🔍 Document Analysis Options")
+        # if llamaindex_engine:
+        #     st.markdown("---")
+        #     st.subheader("🔍 Document Analysis Options")
             
-            col1, col2 = st.columns(2)
+        #     col1, col2 = st.columns(2)
             
-            with col1:
-                st.markdown("""
-                **⚡ FAISS Search:**
-                - Fast keyword-based analysis
-                - Combines document + medical database
-                - Good for specific medical terms
-                - Reliable and proven approach
-                """)
+        #     with col1:
+        #         st.markdown("""
+        #         **⚡ FAISS Search:**
+        #         - Fast keyword-based analysis
+        #         - Combines document + medical database
+        #         - Good for specific medical terms
+        #         - Reliable and proven approach
+        #         """)
             
-            with col2:
-                st.markdown("""
-                **🦙 LlamaIndex Analysis:**
-                - Advanced contextual understanding
-                - Enhanced document comprehension
-                - Better integration of information
-                - AI-powered insights *(Recommended)*
-                """)
+        #     with col2:
+        #         st.markdown("""
+        #         **🦙 LlamaIndex Analysis:**
+        #         - Advanced contextual understanding
+        #         - Enhanced document comprehension
+        #         - Better integration of information
+        #         - AI-powered insights *(Recommended)*
+        #         """)
         
         # Example section
         st.subheader("📋 What You Can Upload")
@@ -1583,6 +1775,238 @@ def render_upload_page(vector_store):
             • Glucose tests
             • Hormone levels
             """)
+            
+def render_risk_page(vector_store):
+    """Risk prediction forms + post-result RAG/LlamaIndex Q&A using pipelines."""
+    import streamlit as st
+
+    # ---- ensure state keys exist ----
+    if "risk_chat_history" not in st.session_state:
+        st.session_state.risk_chat_history = []
+    if "last_risk_context" not in st.session_state:
+        st.session_state.last_risk_context = ""
+
+    st.title("🩺 Risk Check")
+
+    # ---- load saved sklearn pipelines ----
+    models = load_models()
+    have_heart = bool(models.get("heart"))
+    have_diab  = bool(models.get("diabetes"))
+
+    if not (have_heart or have_diab):
+        st.error(
+            "No saved models found. Please export your trained pipelines to "
+            "`models/heart_pipeline.pkl` and/or `models/diabetes_pipeline.pkl`."
+        )
+        return
+
+    tab_heart, tab_diab = st.tabs(["❤️ Heart Disease", "🧪 Diabetes"])
+
+    # =========================
+    #          HEART
+    # =========================
+    with tab_heart:
+        if not have_heart:
+            st.info("Heart model not loaded.")
+        else:
+            st.subheader("Heart Disease Risk")
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                age      = st.number_input("Age", min_value=0, max_value=120, value=55, step=1)
+                chol     = st.number_input("Cholesterol (mg/dL)", min_value=50, max_value=500, value=240, step=1)
+                trestbps = st.number_input("Resting BP (mm Hg)", min_value=60, max_value=260, value=130, step=1)
+            with c2:
+                thalach  = st.number_input("Max Heart Rate", min_value=40, max_value=240, value=150, step=1)
+                oldpeak  = st.number_input("ST Depression (oldpeak)", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
+                exang    = st.selectbox("Exercise-Induced Angina", ["No", "Yes"])
+            with c3:
+                sex  = st.selectbox("Sex", ["Female", "Male"])
+                fbs  = st.selectbox("Fasting Blood Sugar > 120 mg/dL", ["No", "Yes"])
+                cp   = st.selectbox("Chest Pain Type", ["typical", "atypical", "non-anginal", "asymptomatic"])
+
+            col_a, col_b = st.columns(2)
+            with col_a:
+                restecg = st.selectbox(
+                    "Resting ECG", ["normal", "ST-T wave abnormality", "left ventricular hypertrophy"]
+                )
+            with col_b:
+                slope = st.selectbox("ST Segment Slope", ["upsloping", "flat", "downsloping"])
+
+            # encoders (must match training)
+            cp_map = {"typical": 0, "atypical": 1, "non-anginal": 2, "asymptomatic": 3}
+            restecg_map = {"normal": 0, "ST-T wave abnormality": 1, "left ventricular hypertrophy": 2}
+            slope_map = {"upsloping": 0, "flat": 1, "downsloping": 2}
+
+            # 11-feature vector (UCI-like)
+            X_heart = [[
+                age,
+                1 if sex == "Male" else 0,
+                cp_map[cp],
+                trestbps,
+                chol,
+                1 if fbs == "Yes" else 0,
+                restecg_map[restecg],
+                thalach,
+                1 if exang == "Yes" else 0,
+                oldpeak,
+                slope_map[slope],
+            ]]
+
+            if st.button("Predict Heart Risk", type="primary", key="predict_heart"):
+                try:
+                    model = models["heart"]
+                    risk_pct, _ = predict_with_pipeline(model, X_heart)
+                    risk_text = f"**Heart Disease Risk:** {format_percent(risk_pct)}"
+                    st.success(risk_text)
+
+                    explain = [
+                        f"- Age: {age}, Sex: {sex}",
+                        f"- Cholesterol: {chol} mg/dL, Resting BP: {trestbps} mm Hg",
+                        f"- Max HR: {thalach}, Oldpeak: {oldpeak}",
+                        f"- Exercise-induced angina: {exang}, FBS>120: {fbs}, Chest pain: {cp}",
+                        f"- Resting ECG: {restecg}, ST slope: {slope}",
+                    ]
+                    summary = (
+                        "Heart disease risk result:\n" + risk_text +
+                        "\n\n**Inputs used**\n" + "\n".join(explain) +
+                        "\n\n⚠️ This is for education only. Not medical advice."
+                    )
+                    st.session_state.last_risk_context = summary
+
+                except Exception as e:
+                    st.error(f"Heart prediction failed: {e}")
+
+            # --- follow-up Q&A (RAG / LlamaIndex) ---
+            if st.session_state.last_risk_context:
+                st.markdown("---")
+                st.subheader("💬 Ask follow-up about your result")
+                st.caption("Your risk summary will be used as context with CDC/WHO facts.")
+
+                q = st.text_input(
+                    "Your question",
+                    placeholder="e.g., What lifestyle changes can lower my risk?",
+                    key="heart_followup_q",
+                )
+
+                if st.button("Ask", key="ask_followup_heart") and q:
+                    with st.spinner("Thinking..."):
+                        answer, results = ask_followup_with_rag(
+                            vector_store,
+                            q,
+                            st.session_state.last_risk_context,
+                            llamaindex_engine=st.session_state.get("llamaindex_engine"),
+                        )
+
+                    if not answer:
+                        st.error("Sorry, I couldn't generate an answer. Please try rephrasing.")
+                    else:
+                        st.session_state.risk_chat_history.append({"user": q, "assistant": answer})
+                        st.markdown(answer)
+
+                        # Engine badge
+                        if st.session_state.get("use_llamaindex") and st.session_state.get("llamaindex_engine"):
+                            st.caption("Answered with Enhanced AI")
+                        else:
+                            st.caption("Answered with AI")
+
+                        # Only show sources when FAISS was used (results is non-empty)
+                        if results:
+                            with st.expander("📚 Sources"):
+                                for i, r in enumerate(results[:3], 1):
+                                    st.write(f"**{i}. {r.get('source', 'Unknown')}** (relevance {r.get('relevance_score')})")
+                                    snippet = (r.get("text") or "")
+                                    st.write(snippet[:300] + ("…" if len(snippet) > 300 else ""))
+
+    # =========================
+    #         DIABETES
+    # =========================
+    with tab_diab:
+        if not have_diab:
+            st.info("Diabetes model not loaded.")
+        else:
+            st.subheader("Diabetes Risk")
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                preg    = st.number_input("Pregnancies", min_value=0, max_value=20, value=2, step=1)
+                glucose = st.number_input("Glucose", min_value=0, max_value=300, value=120, step=1)
+                bp      = st.number_input("Blood Pressure", min_value=0, max_value=220, value=72, step=1)
+            with c2:
+                skin    = st.number_input("Skin Thickness", min_value=0, max_value=100, value=23, step=1)
+                insulin = st.number_input("Insulin", min_value=0, max_value=900, value=94, step=1)
+                bmi     = st.number_input("BMI", min_value=10.0, max_value=70.0, value=28.0, step=0.1)
+            with c3:
+                dpf  = st.number_input("Diabetes Pedigree Fn", min_value=0.0, max_value=3.0, value=0.45, step=0.01)
+                age2 = st.number_input("Age", min_value=0, max_value=120, value=35, step=1)
+
+            X_diab = [[preg, glucose, bp, skin, insulin, bmi, dpf, age2]]
+
+            if st.button("Predict Diabetes Risk", type="primary", key="predict_diab"):
+                try:
+                    model = models["diabetes"]
+                    risk_pct, _ = predict_with_pipeline(model, X_diab)
+                    risk_text = f"**Diabetes Risk:** {format_percent(risk_pct)}"
+                    st.success(risk_text)
+
+                    explain = [
+                        f"- Glucose: {glucose}, BP: {bp}, BMI: {bmi}",
+                        f"- Insulin: {insulin}, Skin thickness: {skin}",
+                        f"- DPF: {dpf}, Pregnancies: {preg}, Age: {age2}",
+                    ]
+                    summary = (
+                        "Diabetes risk result:\n" + risk_text +
+                        "\n\n**Inputs used**\n" + "\n".join(explain) +
+                        "\n\n⚠️ This is for education only. Not medical advice."
+                    )
+                    st.session_state.last_risk_context = summary
+
+                except Exception as e:
+                    st.error(f"Diabetes prediction failed: {e}")
+
+            # --- follow-up Q&A (RAG / LlamaIndex) ---
+            if st.session_state.last_risk_context:
+                st.markdown("---")
+                st.subheader("💬 Ask follow-up about your result")
+                st.caption("Your risk summary will be used as context with CDC/WHO facts.")
+
+                q = st.text_input(
+                    "Your question",
+                    placeholder="e.g., What tests should I discuss with my doctor?",
+                    key="diab_followup_q",
+                )
+
+                if st.button("Ask", key="ask_followup_diab") and q:
+                    with st.spinner("Thinking..."):
+                        answer, results = ask_followup_with_rag(
+                            vector_store,
+                            q,
+                            st.session_state.last_risk_context,
+                            llamaindex_engine=st.session_state.get("llamaindex_engine"),
+                        )
+
+                    if not answer:
+                        st.error("Sorry, I couldn't generate an answer. Please try rephrasing.")
+                    else:
+                        st.session_state.risk_chat_history.append({"user": q, "assistant": answer})
+                        st.markdown(answer)
+
+                        # Engine badge
+                        if st.session_state.get("use_llamaindex") and st.session_state.get("llamaindex_engine"):
+                            st.caption("Answered with Enhanced AI")
+                        else:
+                            st.caption("⚡ Answered with Basic AI")
+
+                        # Sources only for FAISS path
+                        if results:
+                            with st.expander("📚 Sources"):
+                                for i, r in enumerate(results[:3], 1):
+                                    st.write(f"**{i}. {r.get('source', 'Unknown')}** (relevance {r.get('relevance_score')})")
+                                    snippet = (r.get("text") or "")
+                                    st.write(snippet[:300] + ("…" if len(snippet) > 300 else ""))
+
+
+
 
 def render_browse_page(vector_store):
     """Render the browse topics page"""
@@ -2015,8 +2439,20 @@ def load_user_history(username: str) -> List[Dict]:
 
 def render_login_page():
     """Render the login page"""
-    st.title("🏥 MediAid AI - Login")
-    st.markdown("Welcome to MediAid AI! Please login to access the medical information system.")
+    st.markdown(
+        """
+        <h1 style='text-align:center;'>🏥 MediAid AI - Login</h1>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        """
+        <p style='text-align:center; font-size:16px;'>
+        Welcome to MediAid AI! Please login to access the medical information system.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
     
     # Center the login form
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -2054,6 +2490,12 @@ def render_login_page():
 
 def main():
     """Main Streamlit app with navigation"""
+    # One-time pre-login onboarding
+    if 'did_onboard' not in st.session_state:
+        st.session_state.did_onboard = False
+    if not st.session_state.did_onboard:
+        render_onboarding_prelogin()
+        return
     
     # Check authentication first
     if not st.session_state.authenticated:
@@ -2082,6 +2524,8 @@ def main():
         render_search_page(vector_store)
     elif st.session_state.current_page == 'upload':
         render_upload_page(vector_store)
+    elif st.session_state.current_page == 'risk':
+        render_risk_page(vector_store)
     elif st.session_state.current_page == 'browse':
         render_browse_page(vector_store)
     elif st.session_state.current_page == 'disease_detail':
