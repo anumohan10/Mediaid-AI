@@ -69,6 +69,27 @@
       "response": "1. **Overview**:\n   - The uploaded medical document appears to be a report on a PET-CT scan procedure involving the administration of FDG (fluoro-2-deoxy-D-glucose) for imaging purposes.\n\n2. **Key Facts**:\n   - The procedure involved the administration of FDG and subsequent PET-CT imaging from the vertex to mid-thigh.\n   - Oral contrast was given for bowel opacification before the scan.\n   - The blood glucose level at the time of FDG injection was 110mg/dl.\n   - Observations included normal phys...",
       "search_type": "llamaindex_document_analysis",
       "full_response_length": 1459
+    },
+    {
+      "timestamp": "2025-08-14T17:53:39.329797",
+      "query": "what is mucoepidermoid carcinoma and how to detect it?",
+      "response": "**OVERVIEW**:\nUnderstanding mucoepidermoid carcinoma and its detection.\n\n**CONDITION ANALYSIS**:\n- Mucoepidermoid carcinoma is a type of salivary gland tumor that can also occur in other organs.\n- It is characterized by a mixture of mucous-secreting, squamous, and intermediate cells.\n- Mucoepidermoid carcinoma is typically slow-growing and can be low, intermediate, or high grade.\n\n**SAFETY CONSIDERATIONS**:\n- Biopsy procedure safety:\n  - Biopsy procedures for detecting mucoepidermoid carcinoma s...",
+      "search_type": "complex_analysis",
+      "full_response_length": 1744
+    },
+    {
+      "timestamp": "2025-08-14T17:54:48.997027",
+      "query": "what does the medical report says?",
+      "response": "Based on the medical document you uploaded, it seems to be a report from a Whole Body PET-CT scan using a radioactive tracer called MF2-fluoro-2-deoxy-D-glucose (8E-EDG). The scan was done from the vertex (top of the head) to the mid-thigh. The report mentions normal tracer distribution in the brain, specifically in the supra and infratentorial brain parenchyma. It also notes findings in the maxillary sinus, mentioning a lesion with overlying cortical thinning.\n\nIn simpler terms, the report indi...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1107
+    },
+    {
+      "timestamp": "2025-08-14T18:01:15.447838",
+      "query": "\"I have diabetes and high blood pressure, am pregnant, what medications are safe?\"",
+      "response": "**OVERVIEW**:\nThe main medical question is about the safety of medications for diabetes and high blood pressure during pregnancy.\n\n**CONDITION ANALYSIS**:\n- **Diabetes**:\n  - Type 2 diabetes affects how the body uses sugar for energy.\n  - It can lead to high levels of glucose in the blood if insulin is not used properly.\n- **High Blood Pressure**:\n  - Chronic blood shortages can pose a risk of serious infections like HIV and hepatitis.\n  - Blood transfusions are crucial for saving lives and impr...",
+      "search_type": "complex_analysis",
+      "full_response_length": 1733
     }
   ],
   "admin": [
