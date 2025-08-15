@@ -16,3 +16,12 @@ easyocr
 faker
 reportlab
 pdfplumber
+# ML libraries for risk assessment
+scikit-learn
+pandas
+joblib
+xgboost
+# LlamaIndex for document analysis
+llama-index
+llama-index-llms-openai
+llama-index-embeddings-openai

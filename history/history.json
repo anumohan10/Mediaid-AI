@@ -71,123 +71,25 @@
       "full_response_length": 1459
     },
     {
-      "timestamp": "2025-08-14T19:27:33.995679",
-      "query": "what is this medical report suggests? ",
-      "response": "Based on the medical document you uploaded, it appears to be a report on a Whole Body PET-CT scan using a radioactive tracer called FDG (fluoro-2-deoxy-D-glucose). This scan helps visualize metabolic activity in different parts of the body. The scan also involved the use of contrast material for better imaging.\n\nThe observations mentioned in the report indicate normal tracer distribution in the brain and a finding related to the maxillary sinus. The blood glucose level at the time of the FDG inj...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 1194
+      "timestamp": "2025-08-14T17:53:39.329797",
+      "query": "what is mucoepidermoid carcinoma and how to detect it?",
+      "response": "**OVERVIEW**:\nUnderstanding mucoepidermoid carcinoma and its detection.\n\n**CONDITION ANALYSIS**:\n- Mucoepidermoid carcinoma is a type of salivary gland tumor that can also occur in other organs.\n- It is characterized by a mixture of mucous-secreting, squamous, and intermediate cells.\n- Mucoepidermoid carcinoma is typically slow-growing and can be low, intermediate, or high grade.\n\n**SAFETY CONSIDERATIONS**:\n- Biopsy procedure safety:\n  - Biopsy procedures for detecting mucoepidermoid carcinoma s...",
+      "search_type": "complex_analysis",
+      "full_response_length": 1744
     },
     {
-      "timestamp": "2025-08-14T19:28:11.265381",
-      "query": "what does this medical report suggests? ",
-      "response": "Based on the medical document you uploaded, it seems to be a report on a Whole Body PET-CT scan using a radioactive tracer called FDG (fluoro-2-deoxy-D-glucose). The scan was done from the vertex to mid-thigh, and an oral contrast was given for better imaging. The blood glucose level at the time of the FDG injection was 110 mg/dl, which is normal.\n\nThe observations in the report indicate normal tracer distribution in the brain and a specific finding related to the maxillary sinus, possibly in th...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 844
-    },
-    {
-      "timestamp": "2025-08-14T19:29:57.399885",
-      "query": "what disease do i have? ",
-      "response": "Based on the medical document you uploaded, it looks like you have been prescribed Levothyroxine 50 mcg to be taken twice a day. Levothyroxine is a medication commonly used to treat hypothyroidism, a condition where your thyroid gland doesn't produce enough thyroid hormone. This hormone is important for regulating your body's metabolism and energy levels.\n\nAs for the notes on the prescription, it may be recommended to take Levothyroxine with food to help with absorption, and monitoring your bloo...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 1033
-    },
-    {
-      "timestamp": "2025-08-14T19:30:29.734145",
-      "query": "what disease do i have?",
-      "response": "Based on the medical document you uploaded, it looks like you have been prescribed Levothyroxine 50 mcg to be taken twice a day. Levothyroxine is a medication commonly used to treat hypothyroidism, a condition where your thyroid gland doesn't produce enough thyroid hormone. This hormone is important for regulating your body's metabolism and energy levels.\n\nThe notes on the prescription may recommend taking Levothyroxine with food to help with absorption and monitoring your blood pressure (BP) as...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 1002
-    },
-    {
-      "timestamp": "2025-08-14T19:30:57.348892",
-      "query": "what disease do i have?",
-      "response": "Based on the medical document you uploaded, it appears that you have been prescribed Levothyroxine 50 mcg to be taken twice a day. Levothyroxine is commonly used to treat hypothyroidism, a condition where your thyroid gland doesn't produce enough thyroid hormone. This hormone is crucial for regulating your body's metabolism and energy levels.\n\nThe notes on your prescription may recommend taking Levothyroxine with food to help with absorption and monitoring your blood pressure (BP) as thyroid hor...",
+      "timestamp": "2025-08-14T17:54:48.997027",
+      "query": "what does the medical report says?",
+      "response": "Based on the medical document you uploaded, it seems to be a report from a Whole Body PET-CT scan using a radioactive tracer called MF2-fluoro-2-deoxy-D-glucose (8E-EDG). The scan was done from the vertex (top of the head) to the mid-thigh. The report mentions normal tracer distribution in the brain, specifically in the supra and infratentorial brain parenchyma. It also notes findings in the maxillary sinus, mentioning a lesion with overlying cortical thinning.\n\nIn simpler terms, the report indi...",
       "search_type": "faiss_document_analysis",
       "full_response_length": 1107
     },
     {
-      "timestamp": "2025-08-14T19:31:46.260350",
-      "query": "what disease do i have?",
-      "response": "1. **Overview**:\n   - The condition being addressed in the uploaded medical document is related to the prescription of Levothyroxine, a medication commonly used to treat thyroid disorders.\n\n2. **Key Facts**:\n   - Levothyroxine is a synthetic form of the thyroid hormone thyroxine, used to replace or supplement the body's natural thyroid hormone.\n   - The dosage mentioned in the document is Levothyroxine 50 mcg twice a day.\n   - The notes provided may include instructions such as taking the medica...",
-      "search_type": "llamaindex_document_analysis",
-      "full_response_length": 1649
-    },
-    {
-      "timestamp": "2025-08-14T20:10:58.124739",
-      "query": "what does this prescription suggests? ",
-      "response": "Based on the medical document you uploaded, it looks like the prescription is for Insulin Glargine at a dose of 10 units twice a day given intramuscularly (IM). This medication is commonly used to help control blood sugar levels in individuals with diabetes.\n\nIf your doctor included any notes like \"Take with food\" or \"Monitor BP,\" it's important to follow those instructions carefully to ensure the medication works effectively and safely for you.\n\nIf you have any questions or concerns about this ...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 820
-    },
-    {
-      "timestamp": "2025-08-14T20:12:55.974693",
-      "query": "what does this prescription suggests?",
-      "response": "Based on the medical document you uploaded, the prescription suggests Insulin Glargine at a dose of 10 units twice a day given intramuscularly (IM). This medication is commonly used to help control blood sugar levels in individuals with diabetes.\n\nIf your doctor included any notes like \"Take with food\" or \"Monitor BP,\" it's important to follow those instructions carefully to ensure the medication works effectively and safely for you.\n\nIf you have any questions or concerns about this prescription...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 836
-    },
-    {
-      "timestamp": "2025-08-14T20:15:09.017033",
-      "query": "what does this prescription suggests?",
-      "response": "Based on the medical document you uploaded, the prescription suggests Insulin Glargine at a dose of 10 units twice a day given intramuscularly (IM) for Diane Martinez, born on March 31, 2007, prescribed by Dr. Jasmine Blankenship on March 28, 2025.\n\nInsulin Glargine is commonly used to help control blood sugar levels in individuals with diabetes. If there are any additional notes like \"Take with food\" or \"Monitor BP,\" it's important to follow those instructions for the medication to work effecti...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 862
-    },
-    {
-      "timestamp": "2025-08-14T20:16:03.644439",
-      "query": "what does this prescription suggests?",
-      "response": "Based on the medical document you uploaded, the prescription suggests that Diane Martinez, born on March 31, 2007, should take Insulin Glargine at a dose of 10 units twice a day given intramuscularly (IM). This medication is commonly used to help control blood sugar levels in individuals with diabetes.\n\nIf there are any additional notes like \"Take with food\" or \"Monitor BP,\" it's important to follow those instructions for the medication to work effectively and safely for Diane.\n\nIf you have any ...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 855
-    },
-    {
-      "timestamp": "2025-08-14T20:16:21.339606",
-      "query": "what does this prescription suggests?",
-      "response": "Based on the medical document you uploaded, the prescription for Diane Martinez suggests taking Insulin Glargine at a dose of 10 units twice a day given intramuscularly (IM). This medication is commonly used to help control blood sugar levels in individuals with diabetes.\n\nIf there are any additional notes like \"Take with food\" or \"Monitor BP,\" it's important to follow those instructions for the medication to work effectively and safely for Diane.\n\nIf you have any questions about managing diabet...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 824
-    },
-    {
-      "timestamp": "2025-08-14T20:17:00.514834",
-      "query": "what does this prescription suggests?",
-      "response": "1. **Overview**:\n   - The prescription indicates the administration of Insulin Glargine, a long-acting insulin used to manage blood sugar levels in individuals with diabetes.\n\n2. **Key Facts**:\n   - Patient: Diane Martinez, DOB: 2007-03-31\n   - Prescriber: Dr. Jasmine Blankenship, NPI: 3457722804\n   - Rx Date: 2025-03-28\n   - Medication: Insulin Glargine 10 Units Bid Im (given twice a day intramuscularly)\n   - Notes: The prescription may include additional instructions like taking with food or m...",
-      "search_type": "llamaindex_document_analysis",
-      "full_response_length": 1640
-    },
-    {
-      "timestamp": "2025-08-14T20:17:26.939098",
-      "query": "what does this prescription suggests?",
-      "response": "1. **Overview**:\n   - The prescription indicates the use of Insulin Glargine, a long-acting insulin, for the patient Diane Martinez.\n\n2. **Key Facts**:\n   - Patient: Diane Martinez, DOB: 2007-03-31\n   - Prescriber: Dr. Jasmine Blankenship, NPI: 3457722804\n   - Rx Date: 2025-03-28\n   - Medication: Insulin Glargine 10 Units Bid Im (Bis in die - twice a day, Intramuscularly)\n   - Notes: The prescription may include additional instructions like \"Take with food\" or \"Monitor BP.\"\n\n3. **Prevention/Trea...",
-      "search_type": "llamaindex_document_analysis",
-      "full_response_length": 1618
-    },
-    {
-      "timestamp": "2025-08-14T20:17:41.116547",
-      "query": "what does this prescription suggests?",
-      "response": "Based on the medical document you uploaded, the prescription for Diane Martinez suggests taking Insulin Glargine at a dose of 10 units twice a day given intramuscularly (IM). This medication is commonly used to help control blood sugar levels in individuals with diabetes.\n\nIf there are any additional notes like \"Take with food\" or \"Monitor BP,\" make sure to follow those instructions for the medication to work effectively and safely for Diane.\n\nIf you have any questions about managing diabetes fo...",
-      "search_type": "faiss_document_analysis",
-      "full_response_length": 819
-    },
-    {
-      "timestamp": "2025-08-14T20:23:03.721928",
-      "query": "what does this prescription suggests?",
-      "response": "1. **Overview**:\n   - The prescription indicates the administration of Insulin Glargine, a long-acting insulin used to manage blood sugar levels in individuals with diabetes.\n\n2. **Key Facts**:\n   - Patient: Diane Martinez, DOB: 2007-03-31\n   - Prescriber: Dr. Jasmine Blankenship, NPI: 3457722804\n   - Rx Date: 2025-03-28\n   - Medication: Insulin Glargine 10 Units Bid Im (Bis in die - twice a day, Intramuscularly)\n   - Notes: The additional notes may include instructions like \"Take with food\" or ...",
-      "search_type": "llamaindex_document_analysis",
-      "full_response_length": 1555
-    },
-    {
-      "timestamp": "2025-08-14T20:24:09.826814",
-      "query": "what does this prescription suggests?",
-      "response": "1. **Overview**:\n   - The prescription indicates the use of Insulin Glargine, a long-acting insulin, for the patient Diane Martinez.\n\n2. **Key Facts**:\n   - Patient: Diane Martinez, DOB: 2007-03-31\n   - Prescriber: Dr. Jasmine Blankenship, NPI: 3457722804\n   - Rx Date: 2025-03-28\n   - Medication: Insulin Glargine 10 Units Bid Im (given intramuscularly)\n   - Notes: The prescription may include additional instructions like taking with food or monitoring blood pressure.\n\n3. **Prevention/Treatment**...",
-      "search_type": "llamaindex_document_analysis",
-      "full_response_length": 1396
-    },
-    {
-      "timestamp": "2025-08-14T20:28:58.303825",
-      "query": "what is dengue? ",
-      "response": "1. **Overview**: Dengue is a viral infection caused by the dengue virus, which is transmitted to humans through the bites of infected Aedes mosquitoes.\n\n2. **Key Facts**:\n   - Dengue is prevalent in tropical and subtropical regions around the world.\n   - Symptoms of dengue include sudden onset of high fever, severe headache, joint and muscle pain, skin rash, and mild bleeding manifestations like nose or gum bleeding.\n   - In severe cases, dengue can lead to dengue hemorrhagic fever (DHF) or deng...",
-      "search_type": "llamaindex_search",
-      "full_response_length": 1899
+      "timestamp": "2025-08-14T18:01:15.447838",
+      "query": "\"I have diabetes and high blood pressure, am pregnant, what medications are safe?\"",
+      "response": "**OVERVIEW**:\nThe main medical question is about the safety of medications for diabetes and high blood pressure during pregnancy.\n\n**CONDITION ANALYSIS**:\n- **Diabetes**:\n  - Type 2 diabetes affects how the body uses sugar for energy.\n  - It can lead to high levels of glucose in the blood if insulin is not used properly.\n- **High Blood Pressure**:\n  - Chronic blood shortages can pose a risk of serious infections like HIV and hepatitis.\n  - Blood transfusions are crucial for saving lives and impr...",
+      "search_type": "complex_analysis",
+      "full_response_length": 1733
     }
   ],
   "admin": [
