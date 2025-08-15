@@ -263,7 +263,7 @@ def create_ocr_interface():
 
     # Status badge only (no early return)
     if ocr.is_available():
-        st.success(f"OCR available: {ocr.engine_type}")
+        pass
     else:
         st.info("📄 PDF text extraction is available. Image OCR is currently disabled.")
 
