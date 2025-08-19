@@ -1,27 +1,26 @@
-fastapi
-uvicorn
-requests
-beautifulsoup4
-requests-html
-faiss-cpu
-numpy
-openai
-python-dotenv
-streamlit
-Pillow
-pytesseract
-opencv-python
-pdf2image
-easyocr
-faker
-reportlab
-pdfplumber
-# ML libraries for risk assessment
-scikit-learn
-pandas
-joblib
-xgboost
-# LlamaIndex for document analysis
-llama-index
-llama-index-llms-openai
-llama-index-embeddings-openai
+# Streamlit Cloud Requirements for MediAid AI
+streamlit==1.28.0
+streamlit-authenticator==0.2.3
+openai==1.3.0
+faiss-cpu==1.7.4
+pandas==2.0.0
+numpy==1.24.0
+scikit-learn==1.3.0
+joblib==1.3.0
+python-dotenv==1.0.0
+requests==2.31.0
+Pillow==10.0.0
+
+# LlamaIndex dependencies for RAG functionality
+llama-index-core==0.9.0
+llama-index-llms-openai==0.1.0
+llama-index-embeddings-openai==0.1.0
+llama-index-vector-stores-faiss==0.1.0
+llama-index-readers-file==0.1.0
+
+# OCR and document processing
+pytesseract==0.3.10
+opencv-python-headless==4.8.0.76
+easyocr==1.7.0
+pdf2image==1.16.3
+pypdf==3.17.0
