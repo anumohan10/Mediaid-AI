@@ -146,6 +146,27 @@
       "response": "- **Overview**: Harmful algal blooms are the rapid growth of algae or cyanobacteria in water that can have detrimental effects on human health, animals, and the environment. These blooms can produce toxins that pose health risks when individuals come into contact with contaminated water.\n\n- **Key Facts**:\n  - Algae and cyanobacteria are plant-like organisms that can quickly multiply and form blooms in water bodies.\n  - Harmful algal blooms can appear as foam, scum, mats, or paint on the water's ...",
       "search_type": "llamaindex_search",
       "full_response_length": 2314
+    },
+    {
+      "timestamp": "2025-08-16T11:09:52.843346",
+      "query": "what is mucoepidermoid carcinoma?",
+      "response": "1. **Overview**: Mucoepidermoid carcinoma is a type of cancer that can develop in various glands throughout the body, most commonly in the salivary glands. It is characterized by a mixture of mucous-producing cells and squamous (skin-like) cells.\n\n2. **Key Facts**:\n   - Mucoepidermoid carcinoma is one of the most common types of salivary gland cancers.\n   - Symptoms may include a painless mass or swelling in the affected gland, difficulty swallowing, numbness in the face, or facial paralysis.\n  ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1589
+    },
+    {
+      "timestamp": "2025-08-16T11:10:26.342088",
+      "query": "how to analyse this mucoepidermoid disease?",
+      "response": "1. **Overview**:\n   - Mucoepidermoid carcinoma is a type of cancer that can develop in various glands throughout the body, most commonly in the salivary glands.\n  \n2. **Key Facts**:\n   - Symptoms may include a painless mass or swelling in the affected gland, facial nerve weakness, difficulty swallowing, or numbness in the face.\n   - Diagnosis is typically confirmed through a biopsy, imaging studies like CT scans or MRIs, and sometimes blood tests to assess overall health.\n\n3. **Prevention/Treatm...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1395
+    },
+    {
+      "timestamp": "2025-08-16T11:11:43.325344",
+      "query": "what this medical report suggests?",
+      "response": "Based on the medical document you uploaded, it appears to be a report from a PET-CT scan using a radioactive tracer called FDG (fluoro-2-deoxy-D-glucose). The scan was done from the vertex to mid-thigh, and it seems to have focused on areas like the head and neck, noting normal tracer distribution in the brain parenchyma. There was also a mention of findings in the maxillary sinus, indicating a lesion with cortical thinning.\n\nThis report suggests that the scan was performed to assess metabolic a...",
+      "search_type": "faiss_document_analysis",
+      "full_response_length": 1249
     }
   ],
   "admin": [
