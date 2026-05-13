@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Local auth database - DO NOT COMMIT
+auth/users.db
+
 # Python cache
 __pycache__/
 *.py[cod]
