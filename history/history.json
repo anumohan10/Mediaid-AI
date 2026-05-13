@@ -169,6 +169,30 @@
       "response": "1. **Overview**: Mucoepidermoid carcinoma is a type of cancer that can develop in various glands throughout the body, most commonly in the salivary glands. It is characterized by a combination of mucous-producing cells and epidermal-like cells.\n\n2. **Key Facts**:\n   - Mucoepidermoid carcinoma is the most common type of salivary gland malignancy.\n   - Symptoms may include a painless mass or swelling in the affected gland, difficulty swallowing, facial paralysis, or persistent pain in the area.\n  ...",
       "search_type": "llamaindex_search",
       "full_response_length": 1594
+    },
+    {
+      "timestamp": "2026-05-08T18:36:18.951998",
+      "query": "I'm having severe cough, what to do? \n",
+      "response": "I'm sorry to hear that you're experiencing a severe cough. It's important to pay attention to your symptoms and seek medical advice if needed. \n\nA severe cough can be caused by various factors such as infections, allergies, or even underlying health conditions. If your cough is persistent, accompanied by other symptoms like fever, shortness of breath, or chest pain, it's crucial to consult a healthcare professional for a proper evaluation and treatment.\n\nIn the meantime, you can try some home re...",
+      "search_type": "ai_search",
+      "full_response_length": 854
     }
-  ]
+  ],
+  "nandu": [
+    {
+      "timestamp": "2026-05-12T16:20:35.763609",
+      "query": "What is hypertension?",
+      "response": "Hypertension, also known as high blood pressure, is a common condition where the force of blood against the walls of your arteries is consistently too high. It's a significant health concern globally, affecting over 1.28 billion adults aged 30-79 years worldwide, with most cases found in low- and middle-income countries.\n\nMany people with hypertension are unaware they have it, which is why regular blood pressure checks are crucial. If left untreated, hypertension can lead to serious health issue...",
+      "search_type": "ai_search",
+      "full_response_length": 1038
+    },
+    {
+      "timestamp": "2026-05-12T16:21:19.805308",
+      "query": "What are symptoms of diabetes?",
+      "response": "1. **Overview**: Diabetes is a chronic condition that affects how your body turns food into energy. There are different types of diabetes, with the most common being type 1 and type 2 diabetes.\n\n2. **Key Facts**:\n   - Increased thirst and frequent urination\n   - Extreme hunger\n   - Unexplained weight loss\n   - Fatigue and weakness\n   - Blurred vision\n   - Slow-healing sores or frequent infections\n   - Tingling, pain, or numbness in the hands/feet (type 2 diabetes)\n\n3. **Prevention/Treatment**:\n ...",
+      "search_type": "llamaindex_search",
+      "full_response_length": 1296
+    }
+  ],
+  "demo": []
 }

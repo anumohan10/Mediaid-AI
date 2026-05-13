@@ -9,6 +9,14 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# OpenAI embedding model used for both index building and query embedding.
+# text-embedding-3-small replaces the older text-embedding-ada-002: it is
+# newer, ~5x cheaper, and outperforms ada-002 on MTEB benchmarks. Keep this
+# in sync with EMBEDDING_MODEL in streamlit_app.py and scripts/embed_chunks.py;
+# changing it requires rebuilding the FAISS index, since query vectors from
+# a different model do not match documents already embedded with this one.
+EMBEDDING_MODEL = "text-embedding-3-small"
+
 class MedicalRAG:
     """
     Retrieval-Augmented Generation system for medical information using FAISS.
@@ -30,8 +38,9 @@ class MedicalRAG:
         
         self.client = OpenAI(api_key=api_key)
         
-        # Load configuration from environment variables
-        self.embedding_model = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-ada-002')
+        # Load configuration from environment variables (defaults align with
+        # streamlit_app.EMBEDDING_MODEL so query and index embeddings match).
+        self.embedding_model = os.getenv('OPENAI_EMBEDDING_MODEL', EMBEDDING_MODEL)
         self.chat_model = os.getenv('OPENAI_CHAT_MODEL', 'gpt-3.5-turbo')
         self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.1'))
         

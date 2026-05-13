@@ -6,6 +6,7 @@ Supports reading text from medical reports, prescriptions, and lab results.
 
 import os
 import io
+import re
 import logging
 from typing import Dict, List, Optional, Tuple
 from PIL import Image
@@ -201,60 +202,121 @@ class MedicalOCR:
         return ' '.join(words)
     
     def analyze_medical_document(self, text: str) -> Dict[str, List[str]]:
-        """Analyze extracted text to identify medical document components."""
+        """Extract specific medical items from OCR text using regex patterns.
+
+        Unlike the previous line-scanning implementation (which appended
+        whole lines on any keyword hit and so dumped the entire document
+        into every category when OCR returned text without newlines), this
+        version returns only the matched tokens/phrases — deduplicated and
+        whitespace-collapsed — for each category. Empty categories are
+        omitted; the Streamlit renderer treats missing keys as
+        "None detected".
+        """
         if not text:
             return {}
-        
-        text_lower = text.lower()
-        analysis = {}
-        
-        # Look for medications
-        medication_keywords = ['mg', 'ml', 'tablet', 'capsule', 'syrup', 'injection', 'drops', 'ointment']
-        medications = []
-        lines = text.split('\n')
-        for line in lines:
-            line_lower = line.lower()
-            if any(keyword in line_lower for keyword in medication_keywords):
-                medications.append(line.strip())
+
+        analysis: Dict[str, List[str]] = {}
+
+        def _dedup(matches: List[str]) -> List[str]:
+            out: List[str] = []
+            seen: set = set()
+            for m in matches:
+                cleaned = " ".join(m.split()).strip()
+                key = cleaned.lower()
+                if cleaned and key not in seen:
+                    seen.add(key)
+                    out.append(cleaned)
+            return out
+
+        def _split_camel(s: str) -> str:
+            """Insert spaces at camelCase and ACRONYMword boundaries.
+
+            OCR frequently smushes tokens together (e.g. "FDGinjectionwas").
+            We re-introduce spaces at:
+              - lowercase → uppercase transitions  ("fooBar" → "foo Bar")
+              - ACRONYM → lowercase transitions    ("FDGinjection" → "FDG injection")
+            """
+            s = re.sub(r"([a-z])([A-Z])", r"\1 \2", s)
+            s = re.sub(r"([A-Z]{2,})([a-z])", r"\1 \2", s)
+            return s
+
+        # Pre-clean OCR-joined tokens once so word boundaries work for the
+        # regex matches AND the keyword searches below ("\bFDG\b" only
+        # fires once "FDGinjection" becomes "FDG injection").
+        text = _split_camel(text)
+
+        # --- Medications: tight dosage pattern (4+ letter name immediately
+        #     before "<n> mg") to avoid false positives like "fluoro-2",
+        #     PLUS a curated list of common drug / contrast-agent names
+        #     (case-insensitive, exact-word match). ---
+        med_dosage_pattern = re.compile(
+            r"\b[A-Za-z]{4,}\s*\d+\s*mg\b",
+            re.IGNORECASE,
+        )
+        med_matches = list(med_dosage_pattern.findall(text))
+
+        medication_keywords = [
+            "glucose", "insulin", "aspirin", "metformin",
+            "lisinopril", "atorvastatin", "omeprazole",
+            "amoxicillin", "ibuprofen", "paracetamol",
+            "contrast", "tracer", "FDG",
+        ]
+        for kw in medication_keywords:
+            if re.search(rf"\b{re.escape(kw)}\b", text, re.IGNORECASE):
+                # Preserve canonical casing for acronyms (FDG), capitalize the rest.
+                med_matches.append(kw if kw.isupper() else kw.capitalize())
+
+        # OCR commonly joins tokens together ("FDGinjectionwas") — re-introduce
+        # word breaks before dedup so the panel renders readable items.
+        med_matches = [_split_camel(m) for m in med_matches]
+        medications = _dedup(med_matches)
         if medications:
             analysis['medications'] = medications
-        
-        # Look for vital signs
-        vital_patterns = ['bp:', 'blood pressure:', 'pulse:', 'temperature:', 'weight:', 'height:']
-        vitals = []
-        for line in lines:
-            line_lower = line.lower()
-            if any(pattern in line_lower for pattern in vital_patterns):
-                vitals.append(line.strip())
-        if vitals:
-            analysis['vitals'] = vitals
-        
-        # Look for diagnoses
-        diagnosis_keywords = ['diagnosis:', 'diagnosed with', 'condition:', 'disease:', 'disorder:']
-        diagnoses = []
-        for line in lines:
-            line_lower = line.lower()
-            if any(keyword in line_lower for keyword in diagnosis_keywords):
-                diagnoses.append(line.strip())
-        if diagnoses:
-            analysis['diagnoses'] = diagnoses
-        
-        # Look for lab values
-        lab_keywords = ['hemoglobin', 'glucose', 'cholesterol', 'creatinine', 'urea', 'hba1c']
-        lab_values = []
-        for line in lines:
-            line_lower = line.lower()
-            if any(keyword in line_lower for keyword in lab_keywords):
-                lab_values.append(line.strip())
+
+        # --- Lab values: uppercase-acronym key + numeric value
+        #     (e.g. "SUV: 5.4", "SUVmax 5.4", "FDG-10").
+        #     Tighter than before so partial chemical names like
+        #     "fluoro-2" no longer leak in. Separator is colon, hyphen,
+        #     OR whitespace — covers both "SUV: 5.4" and "SUVmax 5.4". ---
+        lab_pattern = re.compile(
+            r"\b[A-Z]{2,}\s*(?:max)?\s*[:\-\s]\s*\d+\.?\d*",
+        )
+        lab_values = _dedup(lab_pattern.findall(text))
         if lab_values:
             analysis['lab_values'] = lab_values
-        
+
+        # --- Diagnoses: hits against a short medical-condition keyword list.
+        #     We surface just the capitalized term so the panel stays tidy. ---
+        diagnosis_keywords = [
+            "cancer", "tumor", "nodule", "lesion", "metastasis",
+            "pneumonia", "hypertension", "diabetes", "infection",
+        ]
+        text_lower = text.lower()
+        diagnoses = [
+            kw.capitalize() for kw in diagnosis_keywords
+            if re.search(rf"\b{kw}\b", text_lower)
+        ]
+        if diagnoses:
+            analysis['diagnoses'] = diagnoses
+
+        # --- Vitals: BP / pulse / temperature / weight / height with a
+        #     numeric value attached. Uses the same matched-substring
+        #     approach as medications and lab values. ---
+        vital_pattern = re.compile(
+            r"\b(?:BP|blood\s*pressure|pulse|temperature|temp|weight|height|HR|SpO2)\s*[:=]?\s*"
+            r"\d+\.?\d*\s*/?\s*\d*\.?\d*\s*[A-Za-z°%/]*",
+            re.IGNORECASE,
+        )
+        vitals = _dedup(vital_pattern.findall(text))
+        if vitals:
+            analysis['vitals'] = vitals
+
         return analysis
 
     
 def create_ocr_interface():
     """Create Streamlit interface for OCR / PDF text extraction."""
-    st.subheader("📄 Medical Document Reader")
+    st.subheader("Medical Document Reader")
 
     # Init OCR (for images). Do not hard-fail if missing.
     if 'ocr_processor' not in st.session_state:
@@ -293,8 +355,8 @@ def create_ocr_interface():
             if text:
                 st.session_state.extracted_text = text
                 st.session_state.document_analysis = ocr.analyze_medical_document(text)
-                st.subheader("📝 Extracted Text")
-                st.text_area("Text from document:", text, height=220)
+                # Raw text is rendered (collapsed) by the caller's
+                # "View Uploaded Document Text" expander — don't re-show it here.
                 return text
             else:
                 st.warning("No selectable text found in the PDF (might be a scan). You can try converting pages to images and OCR.")
@@ -323,8 +385,8 @@ def create_ocr_interface():
             text = result.get("text", "")
             st.session_state.extracted_text = text
             st.session_state.document_analysis = ocr.analyze_medical_document(text)
-            st.subheader("📝 Extracted Text")
-            st.text_area("Text from document:", text, height=220)
+            # Raw text is rendered (collapsed) by the caller's
+            # "View Uploaded Document Text" expander — don't re-show it here.
             return text
         else:
             st.error(f"OCR failed: {result.get('error','unknown error')}")

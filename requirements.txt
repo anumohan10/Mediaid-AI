@@ -8,6 +8,7 @@ numpy
 openai
 python-dotenv
 streamlit
+bcrypt
 Pillow
 pytesseract
 opencv-python
